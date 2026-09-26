@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Profile } from '@/domain/types'
 import type { Repos } from '@/domain/repos'
 import { createRepos } from '@/repo'
+import { seedFoodLibrary } from './seed'
 
 let reposPromise: Promise<Repos> | null = null
 
@@ -20,7 +21,7 @@ interface AppState {
 }
 
 /**
- * 启动状态机：读档案决定 onboarding 或主界面。
+ * 启动状态机：开库 → 首启导入内置食物库 → 读档案决定 onboarding 或主界面。
  * M1 阶段不含目标也能进主界面（目标引导在今日页内完成）。
  */
 export function useAppBootstrap(): AppState {
@@ -30,11 +31,12 @@ export function useAppBootstrap(): AppState {
     let cancelled = false
     getOrCreateRepos()
       .then(async (repos) => {
+        await seedFoodLibrary(repos)
         const profile = await repos.profile.get()
         if (!cancelled) setState({ phase: profile ? 'ready' : 'onboarding', repos, profile })
       })
       .catch(() => {
-        // 存储不可用：M1 阶段仍放行主界面，页面内会显示空数据
+        // 存储不可用：仍进入 onboarding，页面内会展示对应错误态
         if (!cancelled) setState({ phase: 'onboarding', repos: null, profile: null })
       })
     return () => {
@@ -45,10 +47,19 @@ export function useAppBootstrap(): AppState {
   return state
 }
 
-/** onboarding 完成后刷新状态（进入主界面） */
-export function markOnboarded(profile: Profile): Promise<void> {
-  return getOrCreateRepos().then(async (repos) => {
+/** 保存档案（onboarding 完成 / 设置修改）。返回是否成功，由调用方刷新界面状态。 */
+export async function saveProfileRecord(profile: Profile): Promise<boolean> {
+  try {
+    const repos = await getOrCreateRepos()
     await repos.profile.save(profile)
-    window.location.reload()
-  })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** onboarding 完成后刷新进入主界面 */
+export async function markOnboarded(profile: Profile): Promise<void> {
+  await saveProfileRecord(profile)
+  window.location.reload()
 }

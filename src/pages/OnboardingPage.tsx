@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ActivityKey, Profile, Sex } from '@/domain/types'
 import { ACTIVITY_LABELS, ACTIVITY_FACTORS } from '@/domain/types'
-import { markOnboarded, getOrCreateRepos } from '@/repo/react'
+import { markOnboarded, saveProfileRecord, getOrCreateRepos } from '@/repo/react'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
@@ -26,6 +26,7 @@ export function OnboardingPage() {
   const [weightKg, setWeightKg] = useState('')
   const [prefs, setPrefs] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const yearNum = Number(birthYear)
   const age = yearNum >= CURRENT_YEAR - 100 && yearNum <= CURRENT_YEAR ? CURRENT_YEAR - yearNum : null
@@ -56,20 +57,31 @@ export function OnboardingPage() {
       createdAt: now,
       updatedAt: now,
     }
-    // 初始体重落测量流（不阻塞进入主界面）
     try {
-      if (weightNum !== null) {
-        const repos = await getOrCreateRepos()
-        await repos.measurement.add({
-          date: new Date().toISOString().slice(0, 10),
-          type: 'weight',
-          value: weightNum,
-        })
+      // 先存档案（主记录），再落初始体重；档案失败则不产生孤儿测量
+      const ok = await saveProfileRecord(profile)
+      if (!ok) {
+        setSaveError('保存失败：本机存储不可用，请检查浏览器隐私设置后重试')
+        setSaving(false)
+        return
       }
+      if (weightNum !== null) {
+        try {
+          const repos = await getOrCreateRepos()
+          await repos.measurement.add({
+            date: new Date().toISOString().slice(0, 10),
+            type: 'weight',
+            value: weightNum,
+          })
+        } catch {
+          // 体重记录失败不阻塞 onboarding
+        }
+      }
+      await markOnboarded(profile)
     } catch {
-      // 体重记录失败不阻塞 onboarding
+      setSaveError('保存失败，请重试')
+      setSaving(false)
     }
-    await markOnboarded(profile)
   }
 
   return (
@@ -154,6 +166,8 @@ export function OnboardingPage() {
           onChange={(e) => setPrefs(e.target.value)}
         />
       </fieldset>
+
+      {saveError && <p className="form-error">{saveError}</p>}
 
       <button className="btn-primary" disabled={!valid || saving} onClick={submit}>
         {saving ? '保存中…' : valid ? '完成，进入主页' : '请完成四项必填（*）'}

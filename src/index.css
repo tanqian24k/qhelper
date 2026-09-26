@@ -342,3 +342,27 @@ fieldset.card legend { padding: 0 4px; }
 
 .onboarding h1 { font-size: 20px; margin: 8px 0 4px; }
 .onb-sub { font-size: 13px; color: var(--text-dim); margin: 0 0 16px; }
+
+.history-list { list-style: none; margin: 8px 0 0; padding: 0; }
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 14px;
+}
+
+.history-item:last-child { border-bottom: none; }
+.history-main { font-weight: 600; }
+
+.form-error {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--red);
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}

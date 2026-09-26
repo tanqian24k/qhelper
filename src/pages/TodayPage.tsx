@@ -1,25 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FoodEntry, GoalVersion, Profile } from '@/domain/types'
 import { MEAL_SLOTS, MEAL_SLOT_LABELS } from '@/domain/types'
 import type { Repos } from '@/domain/repos'
 import { ageFromBirthYear, calcBmr, calcBudget, calcTdee } from '@/domain/budget'
+import { todayStr, shiftDate } from '@/utils/date'
 import { GoalDialog } from './GoalDialog'
 import { MealSessionDialog } from './MealSessionDialog'
 import { ProfileDialog } from './ProfileDialog'
+import { GoalHistoryDialog } from './GoalHistoryDialog'
 
 export interface TodayPageProps {
   repos: Repos
   profile: Profile
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function shiftDate(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00`)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
 }
 
 /** 今日页（一日一页时间线）—— spec §5 信息架构，M1 接入真实数据 */
@@ -31,14 +23,20 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
   const [showMeal, setShowMeal] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [latestWeight, setLatestWeight] = useState<number | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const reloadSeq = useRef(0)
   const isToday = date === todayStr()
 
   const reload = useCallback(async () => {
+    const seq = ++reloadSeq.current
     const [g, es] = await Promise.all([repos.goal.getOpen(), repos.foodLog.listByDate(date)])
+    // 日期快速切换时丢弃过期响应
+    if (seq !== reloadSeq.current) return
     setGoal(g)
     setEntries(es)
     // 当前体重 = 体重测量流最新一条（日均值口径 M2 细化）
     const weights = await repos.measurement.listByType('weight')
+    if (seq !== reloadSeq.current) return
     setLatestWeight(weights.length > 0 ? weights[weights.length - 1].value : null)
   }, [repos, date])
 
@@ -47,17 +45,17 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
   }, [reload])
 
   const calc = useMemo(() => {
-    const weight = latestWeight ?? 70
     const bmr = calcBmr({
       sex: profile.sex,
       age: ageFromBirthYear(profile.birthYear),
       heightCm: profile.heightCm,
-      weightKg: weight,
+      // 最新体重优先；无任何体重记录时用 70kg 中位兜底但界面提示（见预算卡 hint）
+      weightKg: latestWeight ?? 70,
     })
     const tdee = calcTdee(bmr, profile.activityKey)
     // 预算随目标版本固定：有目标 = TDEE − 缺口；无目标 = TDEE（维持口径）
     const budget = goal ? calcBudget(tdee, goal.weeklyRateKg) : tdee
-    return { bmr, tdee, budget, weight }
+    return { bmr, tdee, budget, weight: latestWeight ?? 70, hasWeight: latestWeight !== null }
   }, [profile, latestWeight, goal])
 
   const consumed = entries.reduce((s, e) => s + e.kcal, 0)
@@ -98,6 +96,7 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
         )}
         <p className="card-hint">
           预算 {calc.budget.toLocaleString()} · 已摄入 {consumed.toLocaleString()} kcal
+          {!calc.hasWeight && ' · ⚠ 未记录体重，暂按 70kg 估算，建议打卡体重'}
         </p>
       </section>
 
@@ -109,6 +108,7 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
             </p>
             <p className="card-hint">缺口 {calc.tdee - calc.budget} kcal/日（预算随目标固定，不随运动调整）</p>
             <button className="btn-link" onClick={() => setShowGoal(true)}>修改目标</button>
+            <button className="btn-link" onClick={() => setShowHistory(true)}>历史版本</button>
           </>
         ) : (
           <>
@@ -189,6 +189,7 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
         />
       )}
       {showProfile && <ProfileDialog profile={profile} onSave={saveProfile} onClose={() => setShowProfile(false)} />}
+      {showHistory && <GoalHistoryDialog repos={repos} onClose={() => setShowHistory(false)} />}
     </main>
   )
 }

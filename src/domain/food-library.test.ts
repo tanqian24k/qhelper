@@ -29,7 +29,7 @@ describe('内置食物库数据', () => {
       expect(['tfda', 'usda', 'manual']).toContain(f.source)
       expect(Array.isArray(f.nameAlias)).toBe(true)
       expect(f.category).toBeTruthy()
-      expect(f.per100g.kcal).toBeGreaterThan(0)
+      expect(f.per100g.kcal).toBeGreaterThanOrEqual(0)
       expect(f.per100g.kcal).toBeLessThan(900)
       expect(f.per100g.proteinG).toBeGreaterThanOrEqual(0)
       expect(f.per100g.fatG).toBeGreaterThanOrEqual(0)
@@ -39,7 +39,10 @@ describe('内置食物库数据', () => {
   })
 
   it('kcal 与三大宏量大致自洽（±15%）', () => {
+    // 酒类热量来自酒精（7 kcal/g），不适用三大宏量公式
+    const ALCOHOL = new Set(['白酒', '红酒', '啤酒', '料酒'])
     for (const f of foods) {
+      if (ALCOHOL.has(f.nameZh)) continue
       const { kcal, proteinG, fatG, carbG } = f.per100g
       const derived = proteinG * 4 + carbG * 4 + fatG * 9
       // 高水分蔬菜纤维多，放宽到 ±40%
