@@ -29,6 +29,14 @@ export function useAppBootstrap(): AppState {
 
   useEffect(() => {
     let cancelled = false
+    // 持久存储申请（spec §2.7 / 01 号票：iOS 可能回收未持久化的 IndexedDB）
+    try {
+      if ('storage' in navigator && 'persist' in navigator.storage) {
+        void navigator.storage.persist()
+      }
+    } catch {
+      // 申请失败不阻塞启动
+    }
     getOrCreateRepos()
       .then(async (repos) => {
         await seedFoodLibrary(repos)

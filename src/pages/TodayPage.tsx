@@ -10,6 +10,8 @@ import { ProfileDialog } from './ProfileDialog'
 import { GoalHistoryDialog } from './GoalHistoryDialog'
 import { MeasurementDialog } from './MeasurementDialog'
 import { TrendPage } from './TrendPage'
+import { SettingsPage } from './SettingsPage'
+import { AboutPage } from './AboutPage'
 
 export interface TodayPageProps {
   repos: Repos
@@ -29,7 +31,7 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
   const [todayWeightCount, setTodayWeightCount] = useState(0)
   const [showCheckin, setShowCheckin] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const [tab, setTab] = useState<'today' | 'trend'>('today')
+  const [tab, setTab] = useState<'today' | 'trend' | 'settings' | 'about'>('today')
   const reloadSeq = useRef(0)
   const isToday = date === todayStr()
 
@@ -90,10 +92,13 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
       <nav className="tab-nav" aria-label="页面切换">
         <button className={tab === 'today' ? 'tab tab-on' : 'tab'} onClick={() => setTab('today')}>今日</button>
         <button className={tab === 'trend' ? 'tab tab-on' : 'tab'} onClick={() => setTab('trend')}>趋势</button>
+        <button className={tab === 'settings' ? 'tab tab-on' : 'tab'} onClick={() => setTab('settings')}>设置</button>
+        <button className={tab === 'about' ? 'tab tab-on' : 'tab'} onClick={() => setTab('about')}>关于</button>
       </nav>
-      {tab === 'trend' ? (
-        <TrendPage repos={repos} />
-      ) : (
+      {tab === 'trend' && <TrendPage repos={repos} />}
+      {tab === 'settings' && <SettingsPage />}
+      {tab === 'about' && <AboutPage />}
+      {tab === 'today' && (
         <main className="page">
           <header className="page-header">
             <h1>QHelper</h1>

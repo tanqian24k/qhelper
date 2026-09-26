@@ -431,3 +431,14 @@ fieldset.card legend { padding: 0 4px; }
 .chart-dot-multi { fill: var(--amber-bg); stroke-width: 3; }
 
 .chart-star { font-size: 14px; fill: var(--green-dark); font-weight: 700; text-anchor: middle; pointer-events: none; }
+
+/* —— 关于页 —— */
+.about-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.ok-msg { color: var(--green-dark); }
