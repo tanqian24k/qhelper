@@ -4,9 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // 部署 base：根路径（Netlify Drop / 自有服务器）。
-  // 若改用 GitHub Pages 项目站点，改回 '/qhelper/' 并同步 manifest 的 start_url/scope。
-  base: '/',
+  // GitHub Pages 项目站点固定挂在 /qhelper/ 子路径（仓库名决定），base 必须匹配。
+  // 若改用 Netlify Drop / 自有服务器根路径，改回 '/' 并同步 manifest 的 start_url/scope。
+  base: '/qhelper/',
   resolve: {
     alias: {
       '@': '/src',
@@ -25,8 +25,8 @@ export default defineConfig({
         theme_color: '#16a34a',
         background_color: '#fafaf9',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        start_url: '/qhelper/',
+        scope: '/qhelper/',
         icons: [
           { src: 'icon-192.png?v=3', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png?v=3', sizes: '512x512', type: 'image/png' },
