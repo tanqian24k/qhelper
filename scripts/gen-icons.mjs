@@ -60,3 +60,5 @@ function gen(size, file, { maskable = false } = {}) {
 gen(192, 'public/icon-192.png')
 gen(512, 'public/icon-512.png')
 gen(512, 'public/icon-512-maskable.png', { maskable: true })
+// apple-touch-icon：iOS 主屏图标（180×180，系统自带圆角裁切，所以不预裁圆角）
+gen(180, 'public/apple-touch-icon.png', { maskable: true })
