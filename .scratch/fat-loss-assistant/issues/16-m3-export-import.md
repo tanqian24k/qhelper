@@ -19,3 +19,7 @@ Blocked by: 08 ✅
 ## Answer
 
 （待实现）
+
+## Answer
+
+**完成（commit c7f152a）**：`src/repo/backup.ts`——导出六表全量（schemaVersion+exportedAt）、下载为 qhelper-backup-*.json；导入两步（parseImport 校验预览 → 单事务整库替换，坏文件不碰库）。4 个集成测试覆盖 spec §2.7 两条 Accept（含清空→导入无损、旧数据不残留）。UI 在设置页。

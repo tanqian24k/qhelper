@@ -19,3 +19,7 @@ Blocked by: 08 ✅
 ## Answer
 
 （待实现）
+
+## Answer
+
+**完成（commit c7f152a）**：关于页四节（应用信息/隐私说明/数据来源署名/计算依据，署名与 [food-library-source-notes.md](../research/food-library-source-notes.md) 一致）；`useAppBootstrap` 启动即调 `navigator.storage.persist()`；设置页显示持久化状态。导航扩为 今日/趋势/设置/关于 四页签。
