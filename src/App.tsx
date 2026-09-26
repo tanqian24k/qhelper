@@ -1,6 +1,15 @@
+import { useAppBootstrap } from '@/repo/react'
+import { OnboardingPage } from '@/pages/OnboardingPage'
 import { TodayPage } from '@/pages/TodayPage'
 
-/** M0 空壳：一日一页时间线架构（spec §5 结论 5），业务块均为占位 */
 export default function App() {
-  return <TodayPage />
+  const { phase, repos, profile } = useAppBootstrap()
+
+  if (phase === 'loading') {
+    return <main className="page"><p className="card-hint">加载中…</p></main>
+  }
+  if (phase === 'onboarding' || !repos || !profile) {
+    return <OnboardingPage />
+  }
+  return <TodayPage repos={repos} profile={profile} />
 }
