@@ -17,12 +17,12 @@ function inHeart(nx, ny) {
   return a * a * a - x * x * y * y * y <= 0
 }
 
-function gen(size, file, { maskable = false } = {}) {
+function gen(size, file, { maskable = false, heartHalf = null } = {}) {
   const png = new PNG({ width: size, height: size })
   const r = maskable ? 0 : Math.round(size * 0.22) // maskable 全出血不裁角
   const cx = size / 2
-  // 心占画布约 72% 宽；maskable 缩到 ~56%（安全区内）
-  const half = size * (maskable ? 0.28 : 0.36)
+  // 心占画布比例：默认 72%；maskable 56%（圆形安全区）；可显式覆盖
+  const half = size * (heartHalf ?? (maskable ? 0.28 : 0.36))
   const cy = size * 0.52 // 视觉中心略下移
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -60,5 +60,6 @@ function gen(size, file, { maskable = false } = {}) {
 gen(192, 'public/icon-192.png')
 gen(512, 'public/icon-512.png')
 gen(512, 'public/icon-512-maskable.png', { maskable: true })
-// apple-touch-icon：iOS 主屏图标（180×180，系统自带圆角裁切，所以不预裁圆角）
-gen(180, 'public/apple-touch-icon.png', { maskable: true })
+// apple-touch-icon：iOS 主屏图标（180×180，系统自带圆角裁切，全出血；iOS 裁切为圆角矩形，
+// 安全区比 Android 圆形大，心放大到 66% 与 512 版视觉一致）
+gen(180, 'public/apple-touch-icon.png', { maskable: true, heartHalf: 0.33 })
