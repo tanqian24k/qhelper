@@ -44,11 +44,11 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
     const weights = await repos.measurement.listByType('weight')
     if (seq !== reloadSeq.current) return
     setLatestWeight(weights.length > 0 ? weights[weights.length - 1].value : null)
-    // 今日打卡状态（身体数据块）
-    const todays = await repos.measurement.listByDateAndType(todayStr(), 'weight')
+    // 身体数据块：跟随当前浏览日期（非写死今天），显示该日最后一条与打卡次数
+    const dayRows = await repos.measurement.listByDateAndType(date, 'weight')
     if (seq !== reloadSeq.current) return
-    setTodayWeightCount(todays.length)
-    setTodayWeight(todays.length > 0 ? todays[todays.length - 1].value : null)
+    setTodayWeightCount(dayRows.length)
+    setTodayWeight(dayRows.length > 0 ? dayRows[dayRows.length - 1].value : null)
   }, [repos, date])
 
   useEffect(() => {
@@ -141,19 +141,29 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
       <section className="card" aria-label="身体数据">
         {todayWeight !== null ? (
           <>
-            <p className="card-label">身体数据 · 今日已打卡{todayWeightCount > 1 ? `（${todayWeightCount} 次）` : ''}</p>
+            <p className="card-label">
+              身体数据 · {isToday ? '今日' : '当日'}已打卡{todayWeightCount > 1 ? `（${todayWeightCount} 次）` : ''}
+            </p>
             <p className="card-value">{todayWeight} <small>kg</small></p>
             {todayWeightCount > 1 && <p className="card-hint">曲线取日均值口径，带 * 标记</p>}
-            <button className="btn-link" onClick={() => setShowCheckin(true)}>再记一次 / 修改</button>
+            <button className="btn-link" onClick={() => setShowCheckin(true)}>
+              {isToday ? '再记一次 / 修改' : '补记一条 / 修改'}
+            </button>
           </>
         ) : (
           <>
             <p className="card-label">身体数据</p>
             <p className="card-hint">
-              {latestWeight !== null ? `最新体重 ${latestWeight} kg（${todayStr()} 还没打卡）` : '今日还没打卡'}
-              · 不强制、可补录
+              {isToday
+                ? latestWeight !== null
+                  ? `最新体重 ${latestWeight} kg · 今日还没打卡`
+                  : '今日还没打卡'
+                : `${date} 当日未打卡（最新体重 ${latestWeight ?? '—'} kg）`}
+              {' '}· 不强制、可补录
             </p>
-            <button className="btn-primary btn-block" onClick={() => setShowCheckin(true)}>打卡体重</button>
+            <button className="btn-primary btn-block" onClick={() => setShowCheckin(true)}>
+              {isToday ? '打卡体重' : `为 ${date.slice(5)} 补打卡`}
+            </button>
           </>
         )}
       </section>
