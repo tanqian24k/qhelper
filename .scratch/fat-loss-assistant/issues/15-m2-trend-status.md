@@ -23,3 +23,7 @@ Blocked by: 08 ✅, 14
 ## Answer
 
 （待实现）
+
+## Answer
+
+**完成（commit b6741bc）**：`domain/trend-status.ts` 纯函数——周均对比预期速率：🟢 ±0.25 内 / 🟠 快于 0.5+ / 🔴 连续两周不足 25%；只提示不改账；6 个判定单测全绿；今日页与趋势页共用同一 `assessTrend`。维持模式（速率 0）不评估缺口。
