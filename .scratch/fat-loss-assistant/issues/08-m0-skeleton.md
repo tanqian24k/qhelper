@@ -30,7 +30,7 @@ Spec: [spec.md](../spec.md) §3 / §4 / §9（M0 行）
 
 - ✅ `npm run build` 成功：vite 6 + vite-plugin-pwa 1.3（generateSW，precache 11 entries）；`dist/` 含 `manifest.webmanifest` / `sw.js` / 192+512(+maskable) 图标，preview 下三者均 200 且 index 正确引用 manifest。
 - ✅ `npm test` 14 个单测全绿，覆盖 spec §2.3 验收用例（女 30/165/70 轻度 → BMR≈1420 / TDEE≈1953 / −0.5→≈1403 黄警 / −1→≈853 拒）+ 三态校验四分支 + 达成日推算。
-- ⏳ **安装到主屏待用户验收**：`npx vite preview`（或部署 dist/）后浏览器地址栏出现安装按钮即通过。
+- ✅ ~~安装到主屏待用户验收~~ **用户已验收通过（2026-02）**：可安装到桌面并启动。
 - ✅ CI：`.github/workflows/ci.yml`（npm ci → lint → typecheck → test → build；推送 GitHub 后生效）。
 
 产出结构：
