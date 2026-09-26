@@ -8,6 +8,8 @@ import { GoalDialog } from './GoalDialog'
 import { MealSessionDialog } from './MealSessionDialog'
 import { ProfileDialog } from './ProfileDialog'
 import { GoalHistoryDialog } from './GoalHistoryDialog'
+import { MeasurementDialog } from './MeasurementDialog'
+import { TrendPage } from './TrendPage'
 
 export interface TodayPageProps {
   repos: Repos
@@ -23,7 +25,11 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
   const [showMeal, setShowMeal] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [latestWeight, setLatestWeight] = useState<number | null>(null)
+  const [todayWeight, setTodayWeight] = useState<number | null>(null)
+  const [todayWeightCount, setTodayWeightCount] = useState(0)
+  const [showCheckin, setShowCheckin] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [tab, setTab] = useState<'today' | 'trend'>('today')
   const reloadSeq = useRef(0)
   const isToday = date === todayStr()
 
@@ -38,6 +44,11 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
     const weights = await repos.measurement.listByType('weight')
     if (seq !== reloadSeq.current) return
     setLatestWeight(weights.length > 0 ? weights[weights.length - 1].value : null)
+    // 今日打卡状态（身体数据块）
+    const todays = await repos.measurement.listByDateAndType(todayStr(), 'weight')
+    if (seq !== reloadSeq.current) return
+    setTodayWeightCount(todays.length)
+    setTodayWeight(todays.length > 0 ? todays[todays.length - 1].value : null)
   }, [repos, date])
 
   useEffect(() => {
@@ -75,17 +86,25 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
   }
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <h1>QHelper</h1>
-        <button className="btn-link" onClick={() => setShowProfile(true)}>档案</button>
-      </header>
+    <>
+      <nav className="tab-nav" aria-label="页面切换">
+        <button className={tab === 'today' ? 'tab tab-on' : 'tab'} onClick={() => setTab('today')}>今日</button>
+        <button className={tab === 'trend' ? 'tab tab-on' : 'tab'} onClick={() => setTab('trend')}>趋势</button>
+      </nav>
+      {tab === 'trend' ? (
+        <TrendPage repos={repos} />
+      ) : (
+        <main className="page">
+          <header className="page-header">
+            <h1>QHelper</h1>
+            <button className="btn-link" onClick={() => setShowProfile(true)}>档案</button>
+          </header>
 
-      <div className="date-nav">
-        <button className="seg" onClick={() => setDate((d) => shiftDate(d, -1))}>‹ 前一天</button>
-        <span className="date-label">{date}{isToday ? '（今天）' : ''}</span>
-        <button className="seg" disabled={isToday} onClick={() => setDate((d) => shiftDate(d, 1))}>后一天 ›</button>
-      </div>
+          <div className="date-nav">
+            <button className="seg" onClick={() => setDate((d) => shiftDate(d, -1))}>‹ 前一天</button>
+            <span className="date-label">{date}{isToday ? '（今天）' : ''}</span>
+            <button className="seg" disabled={isToday} onClick={() => setDate((d) => shiftDate(d, 1))}>后一天 ›</button>
+          </div>
 
       <section className="card budget-card" aria-label="今日预算">
         <p className="card-label">{isToday ? '今日预算' : '当日预算'}</p>
@@ -120,11 +139,23 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
       </section>
 
       <section className="card" aria-label="身体数据">
-        <p className="card-label">身体数据</p>
-        <p className="card-hint">
-          {latestWeight !== null ? `最新体重 ${latestWeight} kg` : '今日还没打卡 · 不强制、可补录'}
-          （M2 接入完整打卡与曲线）
-        </p>
+        {todayWeight !== null ? (
+          <>
+            <p className="card-label">身体数据 · 今日已打卡{todayWeightCount > 1 ? `（${todayWeightCount} 次）` : ''}</p>
+            <p className="card-value">{todayWeight} <small>kg</small></p>
+            {todayWeightCount > 1 && <p className="card-hint">曲线取日均值口径，带 * 标记</p>}
+            <button className="btn-link" onClick={() => setShowCheckin(true)}>再记一次 / 修改</button>
+          </>
+        ) : (
+          <>
+            <p className="card-label">身体数据</p>
+            <p className="card-hint">
+              {latestWeight !== null ? `最新体重 ${latestWeight} kg（${todayStr()} 还没打卡）` : '今日还没打卡'}
+              · 不强制、可补录
+            </p>
+            <button className="btn-primary btn-block" onClick={() => setShowCheckin(true)}>打卡体重</button>
+          </>
+        )}
       </section>
 
       {MEAL_SLOTS.map((slot) => {
@@ -190,6 +221,19 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
       )}
       {showProfile && <ProfileDialog profile={profile} onSave={saveProfile} onClose={() => setShowProfile(false)} />}
       {showHistory && <GoalHistoryDialog repos={repos} onClose={() => setShowHistory(false)} />}
-    </main>
+      {showCheckin && (
+        <MeasurementDialog
+          repos={repos}
+          date={date}
+          onClose={() => setShowCheckin(false)}
+          onSaved={() => {
+            setShowCheckin(false)
+            void reload()
+          }}
+        />
+      )}
+        </main>
+      )}
+    </>
   )
 }

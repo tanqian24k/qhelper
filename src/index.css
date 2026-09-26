@@ -366,3 +366,68 @@ fieldset.card legend { padding: 0 4px; }
   border-radius: 10px;
   padding: 10px 12px;
 }
+
+/* —— 底部页签 —— */
+.tab-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0 12px;
+}
+
+.tab {
+  padding: 8px 28px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.tab-on {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  font-weight: 600;
+}
+
+.card-value {
+  margin: 4px 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.card-value small { font-size: 14px; font-weight: 400; color: var(--text-dim); }
+
+/* —— 趋势页 —— */
+.range-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.range-btns { display: flex; gap: 6px; }
+
+.seg-sm { min-width: 0; padding: 5px 12px; font-size: 12px; flex: none; }
+
+.chart { width: 100%; height: auto; }
+
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+
+.chart-label { font-size: 10px; fill: var(--text-dim); }
+
+.chart-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot { fill: #fff; stroke: var(--green); stroke-width: 2; cursor: pointer; }
+
+.chart-dot-multi { fill: var(--amber-bg); stroke-width: 3; }
+
+.chart-star { font-size: 14px; fill: var(--green-dark); font-weight: 700; text-anchor: middle; pointer-events: none; }
