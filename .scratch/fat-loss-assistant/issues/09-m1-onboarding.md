@@ -2,7 +2,7 @@
 
 Labels: ready-for-agent
 Type: task
-Status: claimed
+Status: resolved
 Spec: [spec.md](../spec.md) §2.1 / §2.3 / §9（M1 行）
 Blocked by: 08 ✅
 
@@ -19,4 +19,10 @@ Blocked by: 08 ✅
 
 ## Answer
 
-（待实现）
+**完成（commit a5b35b1）**：
+- `src/pages/OnboardingPage.tsx`：四必填校验（性别/出生年份/身高/活动档位），体重可跳过，偏好选填；四必填未完成按钮禁用。
+- 初始体重落测量流（type=weight），档案失败不产生孤儿数据（评审建议修 2 已采纳：先存档案再落体重，失败有错误提示）。
+- 档案修改走 `ProfileDialog`，保存后预算立即重算（reload 重算链）。
+- 无体重时预算块显示「⚠ 未记录体重，暂按 70kg 估算」（评审必须修 7）。
+
+状态：resolved

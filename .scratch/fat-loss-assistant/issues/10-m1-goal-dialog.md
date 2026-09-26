@@ -2,7 +2,7 @@
 
 Labels: ready-for-agent
 Type: task
-Status: claimed
+Status: resolved
 Spec: [spec.md](../spec.md) §2.2 / §2.3
 Blocked by: 08 ✅
 
@@ -21,4 +21,9 @@ Blocked by: 08 ✅
 
 ## Answer
 
-（待实现）
+**完成（commit a5b35b1）**：
+- `src/pages/GoalDialog.tsx`：输入防抖 150ms 实时调 `checkGoal`；🔴 红卡（两种拒因）不可保存；🟡 黄卡 + 「我已了解黄警风险」勾选后可保存；🟢 绿卡显示预算 + 达成日。
+- 保存走 `GoalRepo.openNew`（事务封存旧版本）；`GoalHistoryDialog` 提供历史版本列表（评审必须修 8）。
+- 速率预设 −0.25/−0.5/−0.75/−1 快捷按钮。
+
+状态：resolved

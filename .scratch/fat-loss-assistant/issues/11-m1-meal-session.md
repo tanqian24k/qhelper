@@ -2,7 +2,7 @@
 
 Labels: ready-for-agent
 Type: task
-Status: claimed
+Status: resolved
 Spec: [spec.md](../spec.md) §2.4 / §5
 Blocked by: 08 ✅
 
@@ -23,4 +23,12 @@ Blocked by: 08 ✅
 
 ## Answer
 
-（待实现）
+**完成（commit a5b35b1，含评审整改）**：
+- `src/pages/MealSessionDialog.tsx`：搜索（防抖+序号守卫）→ 餐槽（按时间默认）→ 份量（1份/半份/2份快捷）→ 暂存区（小计+移除）→「完成本餐」addMany 一次入账；空暂存关闭零数据；双击防抖（committing 态）；ESC/遮罩关闭（暂存非空不误关）。
+- **手改热量已实现**：输入热量即反推克数（`gramsFromKcal`），kcal 以手改值落库（评审必须修 4）。
+- kcal 公式统一 `domain/food.ts`（评审必须修 5，UI 零公式）。
+- 时区修复：`utils/date.ts` 本地时区拼日期，补录/切换跨日正确（评审必须修 3）。
+- 快照复制落库（nameZh + per100g 拷贝）；日期导航补录；reload 序号守卫（评审必须修 6 次要项）。
+- 今日页餐块条目 + 小计 + 删除；预算块已摄入/剩余/超支红字不拦截。
+
+状态：resolved
