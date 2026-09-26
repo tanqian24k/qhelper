@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════
+  丢弃式原型 · 06-网页端核心记录流程原型（wayfinder 票）
+  问题：「MVP 四个核心流程（今日 / 记一餐 / 记身体数据 / 目标设定）
+        长什么样、怎么用」——三个结构不同的界面方案供挑选。
+  形态：单文件 HTML，双击在浏览器打开即用；无持久化（内存数据，
+        刷新即还原）。三个变体经 ?variant=A|B|C 切换，底部浮条 +
+        ←/→ 方向键均可。原型验证后整体废弃，不进实现。
+  变体：A「圆环·手机风」— 大圆环主视觉 + 底部标签栏（移动 App 心智）
+        B「清单·桌面风」— 侧边导航 + 高密度列表（桌面网页心智）
+        C「时间线·手账风」— 单列纵向日志流 + 悬浮添加按钮（日记心智）
+  规则来源：04 号票（数据模型/流程）+ 05 号票（热量预算与安全规则：
+  速率上限 1kg/周拒存、硬下限女1200/男1500 拒存、低于 BMR 黄警）。
+  ═══════════════════════════════════════════════════════════════
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>减脂助手 · 核心流程原型（丢弃式）</title>
+<style>
+  :root{
+    --ink:#1f2430; --sub:#6b7280; --line:#e5e7eb; --bg:#f4f5f7;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626; --blue:#2563eb;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; color:var(--ink); background:var(--bg); min-height:100vh;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select{font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; width:100%;}
+  input:focus,select:focus{outline:2px solid var(--blue); outline-offset:1px;}
+
+  /* ── 丢弃式原型横幅 & 变体浮条（非被评审设计的一部分）── */
+  .proto-banner{position:fixed; top:0; left:0; right:0; z-index:90; background:#111827; color:#fbbf24; font-size:12px; text-align:center; padding:4px 8px;}
+  .proto-switch{position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:95;
+    display:flex; align-items:center; gap:10px; background:#111827; color:#fff; padding:8px 14px; border-radius:999px;
+    box-shadow:0 6px 24px rgba(0,0,0,.35); font-size:14px;}
+  .proto-switch button{background:#374151; color:#fff; border:none; border-radius:50%; width:30px; height:30px; font-size:15px;}
+  .proto-switch button:hover{background:#4b5563;}
+  .proto-state{position:fixed; bottom:60px; right:12px; z-index:94; max-width:340px; max-height:45vh; overflow:auto;
+    background:#111827ee; color:#d1fae5; font-size:11px; line-height:1.6; padding:10px 12px; border-radius:10px; display:none; white-space:pre-wrap;}
+  .proto-state-toggle{position:fixed; bottom:14px; right:12px; z-index:95; background:#374151; color:#fff; border:none; border-radius:8px; padding:6px 10px; font-size:12px;}
+  main{padding-top:26px; padding-bottom:80px;}
+
+  /* ── 通用小组件 ── */
+  .chip{display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px; font-size:13px;}
+  .chip.on{background:#dbeafe; border-color:var(--blue); color:var(--blue); font-weight:600;}
+  .btn{border:none; border-radius:10px; padding:10px 16px; font-size:15px; font-weight:600;}
+  .btn.primary{background:var(--green); color:#fff;}
+  .btn.primary:hover{background:#15803d;}
+  .btn.ghost{background:#eef2f7; color:var(--ink);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .warn-box{border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.5; margin-top:8px;}
+  .warn-box.yellow{background:#fef3c7; color:#92400e; border:1px solid #fcd34d;}
+  .warn-box.red{background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;}
+  .ok-box{background:#dcfce7; color:#166534; border:1px solid #86efac; border-radius:10px; padding:10px 12px; font-size:13px; margin-top:8px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:13px; color:var(--sub); margin-bottom:4px;}
+  .muted{color:var(--sub); font-size:12px;}
+  .num{font-variant-numeric:tabular-nums;}
+
+  /* ════════ 变体 A：圆环 · 手机风 ════════ */
+  .vA{max-width:430px; margin:0 auto; background:#fff; min-height:calc(100vh - 26px); box-shadow:0 0 40px rgba(0,0,0,.06);}
+  .vA-top{padding:16px 18px 6px;}
+  .vA-tabs{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px;
+    display:flex; background:#fff; border-top:1px solid var(--line); z-index:80;}
+  .vA-tabs button{flex:1; background:none; border:none; padding:10px 0 14px; font-size:12px; color:var(--sub);}
+  .vA-tabs button.on{color:var(--green); font-weight:700;}
+  .vA-tabs button span{display:block; font-size:20px;}
+  .ring-wrap{display:flex; flex-direction:column; align-items:center; padding:8px 0 4px;}
+  .ring{position:relative; width:190px; height:190px;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring .ring-txt{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ring .ring-txt b{font-size:34px;}
+  .vA-meals{padding:6px 18px 90px;}
+  .vA-meal{border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px;}
+  .vA-meal h4{font-size:14px; display:flex; justify-content:space-between; margin-bottom:6px;}
+  .vA-entry{display:flex; justify-content:space-between; font-size:13px; color:#374151; padding:3px 0 3px 10px;}
+  .vA-actions{display:flex; gap:8px; padding:0 18px 10px;}
+
+  /* ════════ 变体 B：清单 · 桌面风 ════════ */
+  .vB{display:flex; min-height:calc(100vh - 26px); background:var(--bg);}
+  .vB-side{width:210px; background:#1f2937; color:#d1d5db; padding:18px 10px; flex-shrink:0;}
+  .vB-side h1{color:#fff; font-size:17px; padding:0 10px 14px;}
+  .vB-side button{display:block; width:100%; text-align:left; background:none; border:none; color:#d1d5db; padding:10px 12px; border-radius:8px; font-size:14px; margin-bottom:2px;}
+  .vB-side button.on{background:#374151; color:#fff; font-weight:600;}
+  .vB-main{flex:1; padding:20px 26px; max-width:860px;}
+  .vB-cards{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+  .vB-card{background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 18px; flex:1; min-width:150px;}
+  .vB-card .k{font-size:12px; color:var(--sub);}
+  .vB-card .v{font-size:26px; font-weight:700; margin-top:2px;}
+  table.vB-tbl{width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:13px;}
+  .vB-tbl th{background:#f9fafb; text-align:left; padding:8px 12px; font-weight:600; color:var(--sub); font-size:12px;}
+  .vB-tbl td{padding:8px 12px; border-top:1px solid var(--line);}
+
+  /* ════════ 变体 C：时间线 · 手账风 ════════ */
+  .vC{max-width:520px; margin:0 auto; padding:18px 20px 110px;}
+  .vC h2{font-size:20px; margin-bottom:2px;}
+  .vC .sub{color:var(--sub); font-size:13px; margin-bottom:16px;}
+  .vC-block{border-left:3px solid var(--line); padding:2px 0 18px 16px; margin-left:6px; position:relative;}
+  .vC-block::before{content:""; position:absolute; left:-8px; top:8px; width:13px; height:13px; border-radius:50%; background:#fff; border:3px solid var(--green);}
+  .vC-block.meal::before{border-color:var(--blue);}
+  .vC-block.body::before{border-color:#a855f7;}
+  .vC-block h4{font-size:14px; margin-bottom:6px;}
+  .vC-block .row{display:flex; justify-content:space-between; font-size:13px; padding:2px 0;}
+  .vC-fab{position:fixed; bottom:64px; right:24px; width:54px; height:54px; border-radius:50%; background:var(--green); color:#fff; font-size:26px; border:none; box-shadow:0 6px 18px rgba(22,163,74,.4); z-index:80;}
+
+  /* ── 弹层（记一餐 / 记身体 / 目标在各变体内复用弹层容器，布局样式随变体）── */
+  .overlay{position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:85; display:flex; align-items:flex-end; justify-content:center;}
+  .overlay.center{align-items:center;}
+  .sheet{background:#fff; border-radius:18px 18px 0 0; width:100%; max-width:520px; max-height:86vh; overflow:auto; padding:18px 20px 24px;}
+  .overlay.center .sheet{border-radius:16px; max-width:460px; margin:0 16px;}
+  .sheet h3{font-size:16px; margin-bottom:12px;}
+  .food-list{max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:10px; margin-top:8px;}
+  .food-item{display:flex; justify-content:space-between; padding:9px 12px; font-size:14px; border-bottom:1px solid var(--line); cursor:pointer;}
+  .food-item:hover{background:#f0fdf4;}
+  .food-item.on{background:#dcfce7; font-weight:600;}
+  .portion-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+  .slot-row{display:flex; gap:6px; flex-wrap:wrap;}
+  .x-close{float:right; background:none; border:none; font-size:18px; color:var(--sub);}
+  .tray{border:1px dashed #86efac; background:#f0fdf4; border-radius:10px; padding:8px 10px; margin-bottom:10px;}
+  .tray-row{display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:3px 0;}
+  .tray-row.tray-sum{border-top:1px solid #bbf7d0; margin-top:4px; padding-top:6px;}
+  .tray-x{background:none; border:none; color:var(--red); font-size:13px; padding:0 4px;}
+</style>
+</head>
+<body>
+<div class="proto-banner">丢弃式原型 · 仅用于挑选界面方案 · 数据是假的，刷新即还原</div>
+<main id="app"></main>
+
+<div class="proto-switch">
+  <button id="sw-prev" title="上一个变体">←</button>
+  <span id="sw-label">A — 圆环·手机风</span>
+  <button id="sw-next" title="下一个变体">→</button>
+</div>
+<button class="proto-state-toggle" id="sw-state">📦 原型状态</button>
+<div class="proto-state" id="state-box"></div>
+
+<script>
+/* ══════════ 内存状态（04 号票六实体的原型简化版；无持久化）══════════ */
+const state = {
+  profile: { sex:'女', birthYear:1995, height:165, activityKey:'light', prefs:'不吃香菜' },
+  goal:    { targetWeight:65, rate:0.5 },          // 当前目标版本（原型只有一版）
+  goalClosed: [],                                   // 封存的历史目标版本
+  measurements: [                                   // 统一测量表：{date,type,value}
+    { date:'2026-02-11', type:'weight', value:70.4 },
+    { date:'2026-02-12', type:'weight', value:70.2 },
+    { date:'2026-02-13', type:'weight', value:70.0 },
+    { date:'2026-02-12', type:'bodyfat', value:28.5 },
+    { date:'2026-02-12', type:'waist', value:82 },
+  ],
+  library: [                                        // 食物库（内置精选的抽样）
+    { id:1,  name:'米饭',        kcal:116, unit:'份', grams:200 },
+    { id:2,  name:'馒头',        kcal:223, unit:'个', grams:100 },
+    { id:3,  name:'鸡蛋（煮）',  kcal:144, unit:'个', grams:55 },
+    { id:4,  name:'纯牛奶',      kcal:54,  unit:'杯', grams:250 },
+    { id:5,  name:'鸡胸肉',      kcal:133, unit:'份', grams:150 },
+    { id:6,  name:'红烧肉',      kcal:478, unit:'份', grams:100 },
+    { id:7,  name:'清炒西兰花',  kcal:36,  unit:'份', grams:200 },
+    { id:8,  name:'番茄',        kcal:15,  unit:'个', grams:150 },
+    { id:9,  name:'苹果',        kcal:53,  unit:'个', grams:200 },
+    { id:10, name:'香蕉',        kcal:93,  unit:'根', grams:150 },
+    { id:11, name:'豆浆（无糖）',kcal:31,  unit:'杯', grams:250 },
+    { id:12, name:'酸奶（无糖）',kcal:62,  unit:'杯', grams:120 },
+    { id:13, name:'面条（煮）',  kcal:110, unit:'碗', grams:250 },
+    { id:14, name:'可乐',        kcal:43,  unit:'罐', grams:330 },
+    { id:15, name:'拿铁（中杯）',kcal:75,  unit:'杯', grams:350 },
+    { id:16, name:'麻辣烫（估算）',kcal:120, unit:'份', grams:400 },
+  ],
+  entries: [                                        // 今日食物条目（快照复制）
+    { slot:'breakfast', name:'纯牛奶', grams:250, kcal:135 },
+    { slot:'breakfast', name:'鸡蛋（煮）', grams:55, kcal:79 },
+    { slot:'lunch',     name:'米饭', grams:200, kcal:232 },
+    { slot:'lunch',     name:'鸡胸肉', grams:150, kcal:200 },
+    { slot:'lunch',     name:'清炒西兰花', grams:200, kcal:72 },
+  ],
+};
+const SLOTS = [ ['breakfast','早餐'], ['lunch','午餐'], ['dinner','晚餐'], ['snack','加餐'] ];
+const TYPE_LABELS = { weight:'体重', bodyfat:'体脂', waist:'腰围' };
+const ACTIVITIES = { sedentary:1.2, light:1.375, moderate:1.55, high:1.725 };
+const ACT_LABELS = { sedentary:'久坐（几乎不动）', light:'轻度（每周运动1-3次）', moderate:'中度（每周3-5次）', high:'高（几乎每天）' };
+const TODAY = '2026-02-13';
+
+/* ══════════ 05 号票计算链（纯函数，三个变体共用逻辑、不共用布局）══════════ */
+function age(){ return 2026 - state.profile.birthYear; }
+function bmr(){
+  const p = state.profile, w = latestWeight(), a = age();
+  return p.sex === '男'
+    ? 10*w + 6.25*p.height - 5*a + 5
+    : 10*w + 6.25*p.height - 5*a - 161;
+}
+function latestWeight(){
+  const ws = state.measurements.filter(m => m.type==='weight').sort((x,y)=> y.date.localeCompare(x.date));
+  return ws.length ? ws[0].value : state.profile.weight;
+}
+function tdee(){ return bmr() * ACTIVITIES[state.profile.activityKey]; }
+function calorieFloor(){ return state.profile.sex === '男' ? 1500 : 1200; }
+function budgetFor(rate){ return Math.round(tdee() - rate*1100); }
+function currentBudget(){ return budgetFor(state.goal.rate); }
+function eatenToday(){ return state.entries.reduce((s,e)=> s + e.kcal, 0); }
+/* 目标校验：返回 {ok, level:'red'|'yellow'|'green', msgs:[]} */
+function validateGoal(targetWeight, rate){
+  const msgs = [], budget = budgetFor(rate), floor = calorieFloor();
+  if (rate > 1)              return { ok:false, level:'red', msgs:['每周减重速率不能超过 1 kg——更快减重会流失肌肉且易反弹，请降低速率。'] };
+  if (budget < floor)        return { ok:false, level:'red', msgs:[`按此速率每日预算仅 ${budget} kcal，低于安全下限（${state.profile.sex==='男'?'男':'女'}性 ${floor} kcal），无法保存，请降低速率。`] };
+  if (budget < bmr())        msgs.push(`预算 ${budget} kcal 已低于你的基础代谢（${Math.round(bmr())} kcal），长期低于基代有风险，请确认。`);
+  else                       msgs.push(`每日热量预算约 ${budget} kcal（TDEE ${Math.round(tdee())} − 缺口 ${Math.round(rate*1100)}）。`);
+  if (targetWeight >= latestWeight()) msgs.push('目标体重不低于当前体重——这不是减脂目标，确认要这样设吗？');
+  return { ok:true, level: budget < bmr() ? 'yellow' : 'green', msgs };
+}
+function etaDate(rate){
+  const loss = latestWeight() - state.goal.targetWeight, days = Math.round(loss / rate * 7);
+  const d = new Date(TODAY); d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}（约 ${Math.round(days/7)} 周）`;
+}
+function trendStatus(){
+  // 原型演示：最近两周周均对比预期速率
+  return { label:'正常', cls:'ok', detail:`实际周均 −0.3 kg ≈ 预期 −${state.goal.rate} kg（±0.25 容差内）` };
+}
+
+/* ══════════ 状态面板（规则5：让状态可见）══════════ */
+function renderStateBox(){
+  document.getElementById('state-box').textContent =
+    `profile: ${JSON.stringify(state.profile)}\n` +
+    `goal(当前版本): ${JSON.stringify(state.goal)}  封存:${state.goalClosed.length}版\n` +
+    `BMR=${Math.round(bmr())}  TDEE=${Math.round(tdee())}  预算=${currentBudget()} kcal\n` +
+    `今日已摄入=${eatenToday()} kcal  剩余=${currentBudget()-eatenToday()} kcal\n` +
+    `measurements(${state.measurements.length}): ${state.measurements.filter(m=>m.date===TODAY).map(m=>m.type+'='+m.value).join(', ') || '今日无'}`;
+}
+
+/* ══════════ 变体框架 ══════════ */
+const VARIANTS = [
+  { key:'A', name:'圆环·手机风' },
+  { key:'B', name:'清单·桌面风' },
+  { key:'C', name:'时间线·手账风' },
+];
+let variant = (new URLSearchParams(location.search).get('variant') || 'A').toUpperCase();
+if (!VARIANTS.some(v => v.key === variant)) variant = 'A';
+let view = 'today';      // today | body | goal
+let overlay = null;      // {type:'food'|'body', ...}
+
+function setVariant(k){
+  variant = k; overlay = null;
+  try { history.replaceState(null, '', `?variant=${k}`); }
+  catch (e) { /* file:// 下浏览器禁止改 URL——不影响内存中的变体切换 */ }
+  render();
+}
+function goto(v){ view = v; overlay = null; render(); }
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = variant === 'A' ? renderA() : variant === 'B' ? renderB() : renderC();
+  renderOverlay();
+  document.getElementById('sw-label').textContent =
+    `${variant} — ${VARIANTS.find(v=>v.key===variant).name}`;
+  renderStateBox();
+}
+function renderOverlay(){
+  document.getElementById('ov')?.remove();
+  if (!overlay) return;
+  const el = document.createElement('div');
+  el.id = 'ov';
+  el.className = 'overlay' + (variant === 'B' ? ' center' : '');
+  el.innerHTML = overlay.type === 'food' ? foodSheetHTML()
+               : overlay.type === 'goal' ? goalSheetHTML()
+               : overlay.type === 'trend' ? trendSheetHTML()
+               : bodySheetHTML();
+  el.addEventListener('click', e => { if (e.target === el) { overlay = null; render(); } });
+  document.body.appendChild(el);
+}
+
+/* ══════════ 共用业务动作（各变体按钮都调这些）══════════ */
+let foodPick = { foodId:null, grams:'', kcal:'', slot:'lunch', warn:'' };
+function pickFood(id){
+  const f = state.library.find(x => x.id === id);
+  foodPick.foodId = id; foodPick.grams = ''; foodPick.kcal = ''; foodPick.slot = guessSlot();
+  foodPick.warn = '';
+  refreshOverlay();
+}
+function guessSlot(){
+  const h = 12; // 原型固定演示时间
+  return h < 10 ? 'breakfast' : h < 14 ? 'lunch' : h < 21 ? 'dinner' : 'snack';
+}
+function applyPortion(btn){
+  const f = state.library.find(x => x.id === foodPick.foodId);
+  if (!f) return;
+  foodPick.grams = f.grams;
+  foodPick.kcal = Math.round(f.kcal * f.grams / 100);
+  refreshOverlay();
+}
+function recalcKcal(fromKcal){
+  const f = state.library.find(x => x.id === foodPick.foodId);
+  if (!f) return;
+  if (fromKcal){ // 用户改了热量 → 反推克数
+    const g = Math.round(parseFloat(foodPick.kcal || 0) / f.kcal * 100);
+    foodPick.grams = isNaN(g) ? '' : g;
+  } else {
+    const g = parseFloat(foodPick.grams || 0);
+    foodPick.kcal = isNaN(g) ? '' : Math.round(f.kcal * g / 100);
+  }
+  refreshOverlay(true);
+}
+function addEntry(){
+  const f = state.library.find(x => x.id === foodPick.foodId);
+  const g = parseFloat(foodPick.grams), k = parseFloat(foodPick.kcal);
+  if (!f || !g) { foodPick.warn = '请先选择食物并填写克数'; refreshOverlay(); return; }
+  foodPick.tray.push({ slot:foodPick.slot, name:f.name, grams:g, kcal:isNaN(k)?Math.round(f.kcal*g/100):k });
+  // 入暂存区而不是直接入账——弹层保持打开，可继续添加多种食物
+  foodPick.foodId = null; foodPick.grams = ''; foodPick.kcal = ''; foodPick.warn = '';
+  refreshOverlay();
+}
+function removeTrayItem(i){ foodPick.tray.splice(i, 1); refreshOverlay(); }
+function finishMeal(){
+  state.entries.push(...foodPick.tray);
+  foodPick.tray = [];
+  overlay = null; render();
+}
+function bodySheetHTML(){
+  return `<div class="sheet">
+    <button class="x-close" onclick="closeOv()">✕</button>
+    <h3>记身体数据</h3>
+    <div class="field"><label>体重（kg）· 今日</label><input id="bf-w" type="number" step="0.1" placeholder="如 69.8"></div>
+    <div class="field"><label>体脂率（%，选填）</label><input id="bf-fat" type="number" step="0.1" placeholder="如 27.5"></div>
+    <div class="field"><label>腰围（cm，选填）</label><input id="bf-waist" type="number" step="0.5" placeholder="如 80"></div>
+    <div class="muted">MVP 全部手动输入；设备同步留待后续版本</div>
+    <button class="btn primary" style="width:100%;margin-top:14px" onclick="saveBody()">保存</button>
+  </div>`;
+}
+function saveBody(){
+  const w = parseFloat(document.getElementById('bf-w').value);
+  const fat = parseFloat(document.getElementById('bf-fat').value);
+  const waist = parseFloat(document.getElementById('bf-waist').value);
+  if (!isNaN(w))    state.measurements.push({ date:TODAY, type:'weight', value:w });
+  if (!isNaN(fat))  state.measurements.push({ date:TODAY, type:'bodyfat', value:fat });
+  if (!isNaN(waist))state.measurements.push({ date:TODAY, type:'waist', value:waist });
+  overlay = null; render();
+}
+function foodSheetHTML(){
+  const q = (foodPick.q || '').trim();
+  const list = state.library.filter(f => !q || f.name.includes(q));
+  const f = state.library.find(x => x.id === foodPick.foodId);
+  const traySum = foodPick.tray.reduce((s,e)=>s+e.kcal, 0);
+  return `<div class="sheet">
+    <button class="x-close" onclick="closeOv()">✕</button>
+    <h3>记一餐 <span class="muted" style="font-size:12px;font-weight:400">· 可连续添加多种食物，最后一起入账</span></h3>
+    ${foodPick.tray.length ? `
+      <div class="tray">
+        ${foodPick.tray.map((e,i)=>`<div class="tray-row"><span>${SLOTS.find(s=>s[0]===e.slot)[1]} · ${e.name} <span class="muted">${e.grams}g</span></span><span><span class="num">${e.kcal} kcal</span> <button class="tray-x" onclick="removeTrayItem(${i})" title="移除">✕</button></span></div>`).join('')}
+        <div class="tray-row tray-sum"><span>本餐暂存 ${foodPick.tray.length} 项</span><span class="num"><b>${traySum} kcal</b></span></div>
+      </div>` : ''}
+    <input id="fq" placeholder="搜索食物，如：米饭 / 牛奶" value="${q}" oninput="foodPick.q=this.value; refreshOverlay(true)">
+    <div class="food-list">${list.map(x =>
+      `<div class="food-item ${foodPick.foodId===x.id?'on':''}" onclick="pickFood(${x.id})"><span>${x.name}</span><span class="muted num">${x.kcal} kcal/100g</span></div>`).join('') || '<div class="food-item muted">库里没有？下方保存后会进自定义食物（原型略）</div>'}
+    </div>
+    ${f ? `
+      <div class="field" style="margin-top:12px"><label>餐槽</label>
+        <div class="slot-row">${SLOTS.map(([k,l]) =>
+          `<button class="chip ${foodPick.slot===k?'on':''}" onclick="foodPick.slot='${k}'; refreshOverlay(true)">${l}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>份量（克）· 快捷：${f.unit}≈${f.grams}g</label>
+        <input id="f-grams" type="number" step="1" value="${foodPick.grams}" placeholder="克数" oninput="foodPick.grams=this.value; recalcKcal(false)">
+        <div class="portion-row"><button class="chip" onclick="applyPortion()">1 ${f.unit}（${f.grams}g）</button>
+        <button class="chip" onclick="foodPick.grams=${Math.round(f.grams*0.5)}; recalcKcal(false); ">半 ${f.unit}</button>
+        <button class="chip" onclick="foodPick.grams=${f.grams*2}; recalcKcal(false); ">2 ${f.unit}</button></div>
+      </div>
+      <div class="field"><label>热量（kcal，可手改）</label>
+        <input id="f-kcal" type="number" value="${foodPick.kcal}" placeholder="自动按每100g换算" oninput="foodPick.kcal=this.value; recalcKcal(true)">
+      </div>
+      ${foodPick.warn ? `<div class="warn-box red">${foodPick.warn}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn ghost" style="flex:1" onclick="addEntry()">＋ 加入本餐</button>
+        <button class="btn primary" style="flex:1" ${foodPick.tray.length?'':'disabled'} onclick="finishMeal()">完成本餐（${foodPick.tray.length}项 · ${traySum} kcal）</button>
+      </div>
+    ` : `
+      <div class="muted" style="margin-top:12px">↑ 先选一个食物（原型用内置库演示）</div>
+      ${foodPick.tray.length ? `<button class="btn primary" style="width:100%;margin-top:10px" onclick="finishMeal()">完成本餐（${foodPick.tray.length}项 · ${traySum} kcal）</button>` : ''}
+    `}
+  </div>`;
+}
+function refreshOverlay(keepFocus){
+  const el = document.getElementById('ov');
+  if (!el) { renderOverlay(); return; }
+  if (keepFocus && document.activeElement) { foodPick._focus = document.activeElement.id || null; }
+  el.innerHTML = overlay.type === 'food' ? foodSheetHTML() : bodySheetHTML();
+  if (foodPick._focus){ const n = document.getElementById(foodPick._focus); if (n){ n.focus(); } }
+}
+function closeOv(){ overlay = null; render(); }
+function openFood(){ foodPick = { foodId:null, grams:'', kcal:'', slot:guessSlot(), q:'', warn:'', tray:[] }; overlay = { type:'food' }; render(); }
+function openBody(){ overlay = { type:'body' }; render(); }
+
+/* 目标设定（05 规则在 UI 上的真实表现：红拦 / 黄警 / 绿过） */
+let goalDraft = null;
+function openGoal(){ goalDraft = { target:state.goal.targetWeight, rate:state.goal.rate }; overlay = { type:'goal' }; render(); }
+function goalPreview(){
+  const t = parseFloat(document.getElementById('g-t')?.value ?? goalDraft.target);
+  const r = parseFloat(document.getElementById('g-r')?.value ?? goalDraft.rate);
+  goalDraft = { target:t, rate:r };
+  const v = validateGoal(t, r);
+  const cls = v.level === 'red' ? 'red' : v.level === 'yellow' ? 'yellow' : 'ok';
+  const boxCls = v.level === 'green' ? 'ok-box' : `warn-box ${v.level}`;
+  const eta = t < latestWeight() && v.ok ? `<div class="muted" style="margin-top:6px">预计达成日：${etaDate(r)}（随实际进度动态更新）</div>` : '';
+  return `<div class="${boxCls}">${v.msgs.join('<br>')}${eta}</div>
+    <button class="btn primary" style="width:100%;margin-top:12px" ${v.ok?'':'disabled'} onclick="saveGoal()">保存目标${v.level==='yellow'?'（我已了解黄警风险）':''}</button>`;
+}
+function saveGoal(){
+  state.goalClosed.push({ ...state.goal, closedOn:TODAY });   // 04 号票：改目标 = 封存旧版本
+  state.goal = { targetWeight:goalDraft.target, rate:goalDraft.rate };
+  goto('today');
+}
+
+/* ══════════ 变体 A：圆环 · 手机风 ══════════ */
+function renderA(){
+  const budget = currentBudget(), eaten = eatenToday(), remain = budget - eaten;
+  const pct = Math.min(1, eaten / budget);
+  const R = 80, C = 2*Math.PI*R, dash = (remain<0?1:pct)*C;
+  const ts = trendStatus();
+  const todayW = state.measurements.filter(m=>m.date===TODAY && m.type==='weight');
+  const ringColor = remain < 0 ? 'var(--red)' : '#16a34a';
+  return `<div class="vA">
+    <div class="vA-top"><b style="font-size:17px">今天</b> <span class="muted">2月13日 · ${ts.label==='正常'?'趋势正常':'趋势注意'}</span></div>
+    <div class="ring-wrap">
+      <div class="ring">
+        <svg width="190" height="190">
+          <circle cx="95" cy="95" r="${R}" fill="none" stroke="#eef2f7" stroke-width="16"/>
+          <circle cx="95" cy="95" r="${R}" fill="none" stroke="${ringColor}" stroke-width="16" stroke-linecap="round"
+            stroke-dasharray="${dash} ${C}"/>
+        </svg>
+        <div class="ring-txt"><b class="num">${remain>=0?remain:'超 '+(-remain)}</b><span class="muted">${remain>=0?'还能吃':'已超出'}（kcal）</span></div>
+      </div>
+      <div class="muted num" style="margin-top:6px">预算 ${budget} · 已摄入 ${eaten}</div>
+      ${eaten/budget>1 ? '' : `<div class="muted" style="font-size:11px">预算包含 ${budget<bmr()?'黄警':''}基线</div>`}
+    </div>
+    ${budget < bmr() ? '<div style="padding:0 18px"><div class="warn-box yellow">⚠️ 当前预算低于你的基础代谢，请留意身体信号。</div></div>' : ''}
+    <div class="vA-actions">
+      <button class="btn primary" style="flex:1" onclick="openFood()">＋ 记一餐</button>
+      <button class="btn ghost" style="flex:1" onclick="openBody()">⚖️ ${todayW.length?'已打卡 '+todayW[0].value+' kg':'记体重'}</button>
+    </div>
+    <div class="vA-meals">
+      ${SLOTS.map(([k,l]) => {
+        const es = state.entries.filter(e => e.slot === k);
+        const sum = es.reduce((s,e)=>s+e.kcal,0);
+        return `<div class="vA-meal"><h4>${l}<span class="muted num">${sum} kcal</span></h4>
+          ${es.map(e=>`<div class="vA-entry"><span>${e.name} <span class="muted">${e.grams}g</span></span><span class="num">${e.kcal}</span></div>`).join('') || '<div class="muted" style="padding-left:10px">还没记录</div>'}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="vA-tabs">
+      <button class="${view==='today'?'on':''}" onclick="goto('today')"><span>🏠</span>今天</button>
+      <button class="${view==='goal'?'on':''}" onclick="openGoal()"><span>🎯</span>目标</button>
+      <button class="${view==='body'?'on':''}" onclick="goto('body')"><span>📈</span>趋势</button>
+    </div>
+  </div>` + (view==='body' ? aTrendHTML() : '');
+}
+/* 体重序列：同日多条 → 每日一个日均值（04 号票口径），按日期升序 */
+function dailyWeights(){
+  const byDate = {};
+  state.measurements.filter(m => m.type === 'weight').forEach(m => {
+    (byDate[m.date] = byDate[m.date] || []).push(m.value);
+  });
+  return Object.keys(byDate).sort().map(d => ({
+    date: d,
+    value: Math.round(byDate[d].reduce((s, v) => s + v, 0) / byDate[d].length * 10) / 10,
+    count: byDate[d].length,
+  }));
+}
+function aTrendHTML(){
+  const ws = dailyWeights();
+  const min = Math.min(...ws.map(w=>w.value)), max = Math.max(...ws.map(w=>w.value));
+  const pts = ws.map((w,i)=>{
+    const x = 30 + i*(340/(Math.max(ws.length-1,1)));
+    const y = 150 - (w.value-min)/((max-min)||1)*110;
+    return `${x},${y}`;
+  }).join(' ');
+  return `<div class="overlay center"><div class="sheet">
+    <button class="x-close" onclick="goto('today')">✕</button>
+    <h3>体重趋势（日均值口径）</h3>
+    <svg width="100%" height="170" viewBox="0 0 400 170">
+      <polyline points="${pts}" fill="none" stroke="var(--blue)" stroke-width="2.5"/>
+      ${ws.map((w,i)=>{const [x,y]=pts.split(' ')[i].split(',');return `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--blue)"/><text x="${x}" y="${y-9}" font-size="10" text-anchor="middle" fill="#6b7280">${w.value}${w.count>1?'*':''}</text>`;}).join('')}
+    </svg>
+    <div class="ok-box">${trendStatus().detail}</div>
+    <div class="muted">同日多次体重取日均值（带 * 的点当日有多次打卡）；补录任意日期均可用</div>
+    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="openBody()">＋ 补记 / 记今天</button>
+  </div></div>`;
+}
+function goalSheetHTML(){
+  return `<div class="sheet">
+    <button class="x-close" onclick="closeOv()">✕</button>
+    <h3>目标设定</h3>
+    <div class="muted" style="margin-bottom:10px">修改目标 = 封存当前版本并开始新版本</div>
+    <div class="field"><label>目标体重（kg，当前 ${latestWeight()}）</label>
+      <input id="g-t" type="number" step="0.5" value="${goalDraft.target}" oninput="refreshGoalPreview()"></div>
+    <div class="field"><label>每周减重速率（安全上限 1 kg）</label>
+      <select id="g-r" onchange="refreshGoalPreview()">
+        ${[0.25,0.5,0.75,1,1.5,2].map(r=>`<option value="${r}" ${goalDraft.rate===r?'selected':''}>${r} kg/周${r>1?'（超安全上限，用于演示拦截）':''}</option>`).join('')}
+      </select></div>
+    <div id="g-preview">${goalPreview()}</div>
+    ${state.goalClosed.length?`<div class="muted" style="margin-top:10px">历史版本：${state.goalClosed.length} 个（已封存）</div>`:''}
+  </div>`;
+}
+function refreshGoalPreview(){
+  goalDraft.target = parseFloat(document.getElementById('g-t').value);
+  goalDraft.rate = parseFloat(document.getElementById('g-r').value);
+  document.getElementById('g-preview').innerHTML = goalPreview();
+}
+
+/* ══════════ 变体 B：清单 · 桌面风 ══════════ */
+function renderB(){
+  const budget = currentBudget(), eaten = eatenToday(), remain = budget - eaten;
+  const ts = trendStatus();
+  return `<div class="vB">
+    <div class="vB-side">
+      <h1>🥗 减脂助手</h1>
+      <button class="${view==='today'?'on':''}" onclick="goto('today')">📋 今日总览</button>
+      <button onclick="openFood()">＋ 记一餐</button>
+      <button onclick="openBody()">⚖️ 记身体数据</button>
+      <button class="${view==='goal'?'on':''}" onclick="openGoal()">🎯 目标管理</button>
+      <button onclick="alert('原型不实现：设置 / 导出 / 数据来源署名')">⚙️ 设置（略）</button>
+      <div style="position:absolute;bottom:70px;left:10px;right:10px;font-size:11px;color:#6b7280">原型 · 变体 B</div>
+    </div>
+    <div class="vB-main">
+      ${view==='today' ? `
+      <h2 style="margin-bottom:14px">2026-02-13 周五</h2>
+      <div class="vB-cards">
+        <div class="vB-card"><div class="k">今日预算</div><div class="v num">${budget} <span style="font-size:13px;color:var(--sub)">kcal</span></div></div>
+        <div class="vB-card"><div class="k">已摄入</div><div class="v num">${eaten}</div></div>
+        <div class="vB-card"><div class="k">${remain>=0?'剩余':'超出'}</div><div class="v num" style="color:${remain<0?'var(--red)':'var(--green)'}">${remain>=0?remain:-remain}</div></div>
+        <div class="vB-card"><div class="k">最新体重</div><div class="v num">${latestWeight()} <span style="font-size:13px;color:var(--sub)">kg</span></div></div>
+      </div>
+      ${budget < bmr() ? '<div class="warn-box yellow" style="margin-bottom:14px">⚠️ 当前预算低于基础代谢（黄警，可继续）</div>' : ''}
+      <h3 style="margin:6px 0 8px;font-size:15px">今日饮食（按餐槽）</h3>
+      <table class="vB-tbl"><tr><th>餐槽</th><th>食物</th><th>克数</th><th>热量</th></tr>
+        ${SLOTS.map(([k,l])=>{
+          const es = state.entries.filter(e=>e.slot===k);
+          if (!es.length) return `<tr><td>${l}</td><td colspan="3" class="muted">未记录</td></tr>`;
+          return es.map((e,i)=>`<tr>${i===0?`<td rowspan="${es.length}"><b>${l}</b></td>`:''}<td>${e.name}</td><td class="num">${e.grams}g</td><td class="num">${e.kcal} kcal</td></tr>`).join('');
+        }).join('')}
+        <tr><td colspan="3" style="text-align:right"><b>合计</b></td><td class="num"><b>${eaten} kcal</b></td></tr>
+      </table>
+      <div style="margin-top:10px"><button class="btn primary" onclick="openFood()">＋ 添加食物条目</button>
+      <button class="btn ghost" onclick="openBody()">＋ 记体重 / 体脂 / 围度</button></div>
+      <div class="ok-box" style="margin-top:14px">趋势三色状态：<b>${ts.label}</b> — ${ts.detail}</div>
+      ` : view==='goal' ? bGoalHTML() : bBodyHTML()}
+    </div>
+  </div>`;
+}
+function bGoalHTML(){
+  const v0 = validateGoal(goalDraft.target, goalDraft.rate);
+  return `<h2 style="margin-bottom:6px">目标管理</h2>
+  <div class="muted" style="margin-bottom:14px">模型：目标版本化——保存新目标会封存当前版本；预算与达成日随之更新</div>
+  <div class="vB-cards">
+    <div class="vB-card"><div class="k">当前目标体重</div><div class="v num">${state.goal.targetWeight} kg</div></div>
+    <div class="vB-card"><div class="k">每周速率</div><div class="v num">−${state.goal.rate} kg</div></div>
+    <div class="vB-card"><div class="k">预计达成日（动态）</div><div class="v" style="font-size:18px">${etaDate(state.goal.rate)}</div></div>
+    <div class="vB-card"><div class="k">历史版本</div><div class="v num">${state.goalClosed.length}</div></div>
+  </div>
+  <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;max-width:520px">
+    <h3 style="font-size:15px;margin-bottom:12px">设定新目标</h3>
+    <div class="field"><label>目标体重（kg，当前 ${latestWeight()}）</label>
+      <input id="g-t" type="number" step="0.5" value="${goalDraft.target}" oninput="refreshGoalPreview()"></div>
+    <div class="field"><label>每周速率</label>
+      <select id="g-r" onchange="refreshGoalPreview()">
+        ${[0.25,0.5,0.75,1,1.5,2].map(r=>`<option value="${r}" ${goalDraft.rate===r?'selected':''}>${r} kg/周${r>1?'（超上限演示）':''}</option>`).join('')}
+      </select></div>
+    <div id="g-preview">${goalPreview()}</div>
+  </div>
+  ${state.goalClosed.length?`<table class="vB-tbl" style="margin-top:14px;max-width:520px"><tr><th>封存版本</th><th>速率</th><th>封存日</th></tr>
+    ${state.goalClosed.map(g=>`<tr><td class="num">${g.targetWeight} kg</td><td class="num">−${g.rate} kg/周</td><td>${g.closedOn}</td></tr>`).join('')}</table>`:''}`;
+}
+function bBodyHTML(){
+  const rows = state.measurements.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const TYPES = { weight:'体重 kg', bodyfat:'体脂率 %', waist:'腰围 cm' };
+  return `<h2 style="margin-bottom:14px">身体测量（统一测量流）</h2>
+  <button class="btn primary" onclick="openBody()">＋ 补记 / 记今天</button>
+  <table class="vB-tbl" style="margin-top:12px"><tr><th>日期</th><th>类型</th><th>数值</th></tr>
+    ${rows.map(m=>`<tr><td>${m.date}</td><td>${TYPES[m.type]||m.type}</td><td class="num">${m.value}</td></tr>`).join('')}
+  </table>
+  <div class="muted" style="margin-top:8px">同日同类型允许多条；曲线用日均值。体脂率/围度为选填。</div>`;
+}
+
+/* ══════════ 变体 C：时间线 · 手账风 ══════════ */
+function renderC(){
+  const budget = currentBudget(), eaten = eatenToday(), remain = budget - eaten;
+  const ts = trendStatus();
+  const todayW = state.measurements.filter(m=>m.date===TODAY && m.type==='weight');
+  const blocks = [];
+  blocks.push(`<div class="vC-block"><h4>🎯 今日预算</h4>
+    <div style="font-size:30px;font-weight:700" class="num">${remain>=0?remain:'超'+(-remain)} <span style="font-size:13px;font-weight:400;color:var(--sub)">kcal ${remain>=0?'可吃':'超标'}</span></div>
+    <div class="muted num">预算 ${budget} · 已摄入 ${eaten}${budget<bmr()?' · <b style="color:var(--amber)">低于基代（黄警）</b>':''}</div></div>`);
+  if (todayW.length) {
+    const extra = state.measurements.filter(m=>m.date===TODAY && m.type!=='weight');
+    const extraStr = extra.map(m => (TYPE_LABELS[m.type] || m.type) + ' ' + m.value).join(' · ');
+    const bodyStr = `体重 ${todayW.map(w=>w.value+' kg').join('、')}` + (extra.length ? ' · ' + extraStr : ' · <span class="muted">体脂/围度未记</span>');
+    blocks.push(`<div class="vC-block body"><h4>⚖️ 身体数据</h4>
+      <div class="row"><span>${bodyStr}</span><span class="muted">今日</span></div>
+      <div style="margin-top:6px"><button class="chip" onclick="openBody()">✏️ 补记 / 修改（体重·体脂·围度）</button></div>
+    </div>`);
+  } else {
+    blocks.push(`<div class="vC-block body"><h4>⚖️ 身体数据 <span class="muted" style="font-weight:400;font-size:12px">· 今日还没打卡</span></h4>
+      <button class="btn primary" style="margin-top:4px" onclick="openBody()">⚖️ 打卡今日体重</button>
+      <div class="muted" style="margin-top:4px">不强制；体脂率、腰围等选填，任意日期可补录</div>
+    </div>`);
+  }
+  SLOTS.forEach(([k,l])=>{
+    const es = state.entries.filter(e=>e.slot===k);
+    if (!es.length) return;
+    const sum = es.reduce((s,e)=>s+e.kcal,0);
+    blocks.push(`<div class="vC-block meal"><h4>${l} <span class="muted num">${sum} kcal</span></h4>
+      ${es.map(e=>`<div class="row"><span>${e.name} <span class="muted">${e.grams}g</span></span><span class="num">${e.kcal}</span></div>`).join('')}</div>`);
+  });
+  blocks.push(`<div class="vC-block body"><h4>📈 本周趋势</h4><div class="ok-box">${ts.detail}</div>
+    <div style="margin-top:6px"><button class="chip" onclick="openTrend()">查看体重曲线</button></div>
+    <div class="muted">停滞/偏快时在此给三色提示（只提示，不改预算）</div></div>`);
+  return `<div class="vC">
+    <h2>2月13日 · 周五</h2><div class="sub">一日一页，像手账一样往下记</div>
+    ${blocks.join('')}
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn ghost" onclick="openGoal()">🎯 目标：${state.goal.targetWeight}kg · −${state.goal.rate}/周（改）</button>
+    </div>
+    <button class="vC-fab" onclick="openFood()" title="记一餐">＋</button>
+  </div>`;
+}
+function openTrend(){
+  overlay = { type:'trend' }; render();
+}
+function trendSheetHTML(){
+  const ws = dailyWeights();
+  const min = Math.min(...ws.map(w=>w.value)), max = Math.max(...ws.map(w=>w.value));
+  const pts = ws.map((w,i)=>{
+    const x = 30 + i*(340/(Math.max(ws.length-1,1)));
+    const y = 150 - (w.value-min)/((max-min)||1)*110;
+    return `${x},${y}`;
+  }).join(' ');
+  return `<div class="sheet">
+    <button class="x-close" onclick="closeOv()">✕</button>
+    <h3>体重趋势（日均值口径）</h3>
+    <svg width="100%" height="170" viewBox="0 0 400 170">
+      <polyline points="${pts}" fill="none" stroke="var(--blue)" stroke-width="2.5"/>
+      ${ws.map((w,i)=>{const [x,y]=pts.split(' ')[i].split(',');return `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--blue)"/><text x="${x}" y="${y-9}" font-size="10" text-anchor="middle" fill="#6b7280">${w.value}${w.count>1?'*':''}</text>`;}).join('')}
+    </svg>
+    <div class="ok-box">${trendStatus().detail}</div>
+    <div class="muted">同日多次体重取日均值（带 * 的点当日有多次打卡）；补录任意日期均可用</div>
+    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="openBody()">＋ 补记 / 记今天</button>
+  </div>`;
+}
+
+/* ══════════ 变体浮条（规则4：←/→ 键盘可切，输入框聚焦时不拦截）══════════ */
+document.getElementById('sw-prev').onclick = () => cycle(-1);
+document.getElementById('sw-next').onclick = () => cycle(1);
+function cycle(d){
+  const i = VARIANTS.findIndex(v => v.key === variant);
+  setVariant(VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length].key);
+}
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+  if (e.key === 'ArrowLeft') cycle(-1);
+  if (e.key === 'ArrowRight') cycle(1);
+});
+document.getElementById('sw-state').onclick = () => {
+  const b = document.getElementById('state-box');
+  b.style.display = b.style.display === 'block' ? 'none' : 'block';
+};
+render();
+</script>
+</body>
+</html>
