@@ -4,6 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages 项目站点子路径部署（https://<user>.github.io/qhelper/）
+  base: '/qhelper/',
   resolve: {
     alias: {
       '@': '/src',
@@ -22,7 +24,8 @@ export default defineConfig({
         theme_color: '#16a34a',
         background_color: '#fafaf9',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/qhelper/',
+        scope: '/qhelper/',
         icons: [
           { src: 'icon-192.png?v=3', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png?v=3', sizes: '512x512', type: 'image/png' },
