@@ -2,18 +2,39 @@ import { useEffect, useRef, useState } from 'react'
 import type { Repos } from '@/domain/repos'
 import { exportAndDownload, parseImport, importAll, type ImportPreview } from '@/repo/backup'
 import { useEscape } from '@/hooks/useEscape'
+import { getOrCreateRepos } from '@/repo/react'
 
 export interface SettingsPageProps {
   /** 预留：后续设置项需要读写 Repo */
   repos?: Repos
 }
 
+interface StorageDiag {
+  persisted: 'unknown' | 'yes' | 'no' | 'unsupported'
+  /** 配额估算（字节） */
+  usage: number | null
+  quota: number | null
+  /** 档案 updatedAt——判断「数据是否被清」的关键证据 */
+  profileUpdatedAt: string | null
+  /** 各表行数 */
+  counts: { foodLibrary: number; foodEntries: number; measurements: number; goalVersions: number } | null
+  /** 读写自检结果 */
+  roundtrip: 'ok' | 'fail' | 'testing'
+}
+
 /**
- * 设置页 —— spec §2.7：导出/导入生命线 + 持久存储状态。
+ * 设置页 —— spec §2.7：导出/导入生命线 + 持久存储状态 + 存储诊断。
  */
 export function SettingsPage(_props: SettingsPageProps) {
   void _props
-  const [persisted, setPersisted] = useState<'unknown' | 'yes' | 'no' | 'unsupported'>('unknown')
+  const [diag, setDiag] = useState<StorageDiag>({
+    persisted: 'unknown',
+    usage: null,
+    quota: null,
+    profileUpdatedAt: null,
+    counts: null,
+    roundtrip: 'testing',
+  })
   const [importing, setImporting] = useState(false)
   const [preview, setPreview] = useState<{ text: string; info: ImportPreview } | null>(null)
   const [msg, setMsg] = useState('')
@@ -25,10 +46,49 @@ export function SettingsPage(_props: SettingsPageProps) {
   }, importing && preview !== null)
 
   useEffect(() => {
-    if ('storage' in navigator && 'persist' in navigator.storage) {
-      navigator.storage.persisted().then((p) => setPersisted(p ? 'yes' : 'no'))
-    } else {
-      setPersisted('unsupported')
+    let cancelled = false
+    async function run() {
+      const d: Partial<StorageDiag> = {}
+      // 持久化状态 + 配额
+      try {
+        if ('storage' in navigator && 'persisted' in navigator.storage) {
+          d.persisted = (await navigator.storage.persisted()) ? 'yes' : 'no'
+        } else {
+          d.persisted = 'unsupported'
+        }
+        if ('estimate' in navigator.storage) {
+          const est = await navigator.storage.estimate()
+          d.usage = est.usage ?? null
+          d.quota = est.quota ?? null
+        }
+      } catch {
+        d.persisted = 'unsupported'
+      }
+      // 数据库实况：档案时间戳 + 各表行数 + 读写自检
+      try {
+        const repos = await getOrCreateRepos()
+        const profile = await repos.profile.get()
+        d.profileUpdatedAt = profile?.updatedAt ?? null
+        d.counts = {
+          foodLibrary: await repos.foodLibrary.count(),
+          foodEntries: await dbCount(),
+          measurements: await countMeasurements(),
+          goalVersions: (await repos.goal.listAll()).length,
+        }
+        // 读写自检：写一个探针值再读回
+        const probeKey = `diag:${Date.now()}`
+        await repos.setting.set(probeKey, 'probe')
+        const back = await repos.setting.get<string>(probeKey)
+        await repos.setting.set(probeKey, null)
+        d.roundtrip = back === 'probe' ? 'ok' : 'fail'
+      } catch {
+        d.roundtrip = 'fail'
+      }
+      if (!cancelled) setDiag((prev) => ({ ...prev, ...d }))
+    }
+    void run()
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -99,11 +159,36 @@ export function SettingsPage(_props: SettingsPageProps) {
       <section className="card" aria-label="持久存储">
         <p className="card-label">持久存储</p>
         <p className="card-hint">
-          {persisted === 'yes' && '✓ 已获得持久存储授权，浏览器不会随意清理本应用数据。'}
-          {persisted === 'no' && '尚未持久化：首次启动时已自动申请。若被拒绝，请将本站添加到主屏/书签后重试。'}
-          {persisted === 'unsupported' && '当前浏览器不支持持久存储 API。'}
-          {persisted === 'unknown' && '检测中…'}
+          {diag.persisted === 'yes' && '✓ 已获得持久存储授权，浏览器不会随意清理本应用数据。'}
+          {diag.persisted === 'no' && '⚠ 尚未持久化：浏览器可能在空间不足时清理本站数据。建议将本站添加到主屏后重试。'}
+          {diag.persisted === 'unsupported' && '当前浏览器不支持持久存储 API。'}
+          {diag.persisted === 'unknown' && '检测中…'}
         </p>
+        <p className="card-hint">
+          {diag.usage !== null && diag.quota !== null && (
+            <>占用 {(diag.usage / 1024).toFixed(0)} KB / 配额 {(diag.quota / 1024 / 1024).toFixed(0)} MB · </>
+          )}
+          读写自检：{diag.roundtrip === 'ok' && '✓ 正常'}
+          {diag.roundtrip === 'fail' && '✗ 失败（存储被禁用或已满）'}
+          {diag.roundtrip === 'testing' && '检测中…'}
+        </p>
+        <p className="card-hint">
+          {diag.profileUpdatedAt ? (
+            <>档案最后保存：{new Date(diag.profileUpdatedAt).toLocaleString('zh-CN')}</>
+          ) : (
+            '尚无档案（未完成 onboarding 或已被清除）'
+          )}
+        </p>
+        {diag.counts && (
+          <p className="card-hint">
+            食物库 {diag.counts.foodLibrary} 条 · 饮食记录 {diag.counts.foodEntries} 条 · 测量 {diag.counts.measurements} 条 · 目标版本 {diag.counts.goalVersions} 个
+          </p>
+        )}
+        {diag.profileUpdatedAt && diag.persisted === 'no' && (
+          <p className="form-error">
+            诊断：档案存在但未获持久化授权——若每次进入都要求重录，说明浏览器在会话间清除了站点数据。请在浏览器设置中允许本站存储/将本站加入书签，或联系开发者进一步排查。
+          </p>
+        )}
       </section>
 
       {preview && (
@@ -118,6 +203,18 @@ export function SettingsPage(_props: SettingsPageProps) {
       )}
     </main>
   )
+}
+
+/** 饮食记录总数（直接查 Dexie 表） */
+async function dbCount(): Promise<number> {
+  const { db } = await import('@/repo/dexie-repos')
+  return db.foodEntry.count()
+}
+
+/** 测量记录总数 */
+async function countMeasurements(): Promise<number> {
+  const { db } = await import('@/repo/dexie-repos')
+  return db.measurement.count()
 }
 
 /** 导入确认弹层（设置页内使用） */
