@@ -14,6 +14,31 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 全局错误捕获：任何启动崩溃都显示在屏幕上（移动 WebView 排障用）
+      window.addEventListener('error', function (e) {
+        var el = document.getElementById('boot-error')
+        if (el) return
+        el = document.createElement('pre')
+        el.id = 'boot-error'
+        el.style.cssText =
+          'position:fixed;inset:auto 8px 8px 8px;z-index:99999;background:#fee2e2;color:#991b1b;' +
+          'padding:10px;font:11px/1.4 monospace;white-space:pre-wrap;word-break:break-all;border-radius:8px;'
+        el.textContent = '[启动错误] ' + (e.message || 'unknown') + '\n' + (e.filename || '') + ':' + (e.lineno || '')
+        document.body.appendChild(el)
+      })
+      window.addEventListener('unhandledrejection', function (e) {
+        var el = document.getElementById('boot-error-reject')
+        if (el) return
+        el = document.createElement('pre')
+        el.id = 'boot-error-reject'
+        el.style.cssText =
+          'position:fixed;inset:auto 8px 180px 8px;z-index:99999;background:#fef3c7;color:#92400e;' +
+          'padding:10px;font:11px/1.4 monospace;white-space:pre-wrap;word-break:break-all;border-radius:8px;'
+        el.textContent = '[Promise] ' + String(e.reason && (e.reason.stack || e.reason.message) || e.reason)
+        document.body.appendChild(el)
+      })
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
