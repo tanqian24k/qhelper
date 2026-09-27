@@ -123,7 +123,8 @@ body {
 .fab {
   position: fixed;
   right: max(16px, calc(50vw - 224px));
-  bottom: 24px;
+  /* 抬到底部导航栏之上，避免被 TabBar 遮挡 */
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 16px);
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -134,7 +135,7 @@ body {
   line-height: 1;
   box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
   cursor: pointer;
-  z-index: 10;
+  z-index: 45; /* 高于 TabBar(40)，低于弹层(50) */
 }
 
 .fab:active { background: var(--green-dark); }
