@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">QHelper</string>
+    <string name="title_activity_main">QHelper</string>
+    <string name="package_name">io.qhelper.app</string>
+    <string name="custom_url_scheme">io.qhelper.app</string>
+</resources>
