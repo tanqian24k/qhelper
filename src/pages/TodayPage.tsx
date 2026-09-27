@@ -89,12 +89,6 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
 
   return (
     <>
-      <nav className="tab-nav" aria-label="页面切换">
-        <button className={tab === 'today' ? 'tab tab-on' : 'tab'} onClick={() => setTab('today')}>今日</button>
-        <button className={tab === 'trend' ? 'tab tab-on' : 'tab'} onClick={() => setTab('trend')}>趋势</button>
-        <button className={tab === 'settings' ? 'tab tab-on' : 'tab'} onClick={() => setTab('settings')}>设置</button>
-        <button className={tab === 'about' ? 'tab tab-on' : 'tab'} onClick={() => setTab('about')}>关于</button>
-      </nav>
       {tab === 'trend' && <TrendPage repos={repos} />}
       {tab === 'settings' && <SettingsPage />}
       {tab === 'about' && <AboutPage />}
@@ -249,6 +243,25 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
       )}
         </main>
       )}
+      {/* 原生 App 风格底部导航（fixed，全页面共用） */}
+      <nav className="tab-bar" aria-label="页面切换">
+        <button className={tab === 'today' ? 'tabbar-item tabbar-on' : 'tabbar-item'} onClick={() => setTab('today')}>
+          <span className="tabbar-icon">🍽️</span>
+          <span className="tabbar-label">今日</span>
+        </button>
+        <button className={tab === 'trend' ? 'tabbar-item tabbar-on' : 'tabbar-item'} onClick={() => setTab('trend')}>
+          <span className="tabbar-icon">📈</span>
+          <span className="tabbar-label">趋势</span>
+        </button>
+        <button className={tab === 'settings' ? 'tabbar-item tabbar-on' : 'tabbar-item'} onClick={() => setTab('settings')}>
+          <span className="tabbar-icon">⚙️</span>
+          <span className="tabbar-label">设置</span>
+        </button>
+        <button className={tab === 'about' ? 'tabbar-item tabbar-on' : 'tabbar-item'} onClick={() => setTab('about')}>
+          <span className="tabbar-icon">ℹ️</span>
+          <span className="tabbar-label">关于</span>
+        </button>
+      </nav>
     </>
   )
 }

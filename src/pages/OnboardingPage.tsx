@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ActivityKey, Profile, Sex } from '@/domain/types'
 import { ACTIVITY_LABELS, ACTIVITY_FACTORS } from '@/domain/types'
 import { markOnboarded, saveProfileRecord, getOrCreateRepos } from '@/repo/react'
+import { todayStr } from '@/utils/date'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
@@ -69,7 +70,7 @@ export function OnboardingPage() {
         try {
           const repos = await getOrCreateRepos()
           await repos.measurement.add({
-            date: new Date().toISOString().slice(0, 10),
+            date: todayStr(),
             type: 'weight',
             value: weightNum,
           })

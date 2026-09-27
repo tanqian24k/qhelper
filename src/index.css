@@ -14,6 +14,7 @@
   --text: #1c1917;
   --text-dim: #78716c;
   --border: #e7e5e4;
+  --tabbar-h: 60px;
   font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
@@ -28,7 +29,8 @@ body {
 .page {
   max-width: 480px;
   margin: 0 auto;
-  padding: 16px 16px 96px;
+  /* 底部导航栏高度 + 设备安全区，避免内容被遮挡 */
+  padding: 16px 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 20px);
 }
 
 .page-header {
@@ -367,30 +369,48 @@ fieldset.card legend { padding: 0 4px; }
   padding: 10px 12px;
 }
 
-/* —— 底部页签 —— */
-.tab-nav {
+/* —— 底部导航栏（原生 App 风格，fixed 全宽） —— */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding: 4px 0 12px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  /* 设备安全区：iPhone 底部横条 / 华为手势条 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 40;
 }
 
-.tab {
-  padding: 8px 28px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: #fff;
-  font-size: 14px;
-  cursor: pointer;
+.tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 6px;
+  border: none;
+  background: none;
   color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 0; /* 防挤压 */
 }
 
-.tab-on {
-  background: var(--green);
-  border-color: var(--green);
-  color: #fff;
+.tabbar-icon { font-size: 20px; line-height: 1; }
+
+.tabbar-label { white-space: nowrap; }
+
+.tabbar-on {
+  color: var(--green-dark);
   font-weight: 600;
 }
+
+/* 日期导航按钮防挤压：不换行 */
+.date-nav { flex-wrap: nowrap; }
+.date-nav .seg { white-space: nowrap; padding: 8px 12px; flex: none; }
+.date-label { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .card-value {
   margin: 4px 0;

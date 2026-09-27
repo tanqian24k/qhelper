@@ -12,20 +12,22 @@ export function getOrCreateRepos(): Promise<Repos> {
   return reposPromise
 }
 
-export type AppPhase = 'loading' | 'onboarding' | 'ready'
+export type AppPhase = 'loading' | 'onboarding' | 'ready' | 'error'
 
 interface AppState {
   phase: AppPhase
   repos: Repos | null
   profile: Profile | null
+  /** phase=error 时的人类可读原因 */
+  errorMsg: string
 }
 
 /**
- * 启动状态机：开库 → 首启导入内置食物库 → 读档案决定 onboarding 或主界面。
- * M1 阶段不含目标也能进主界面（目标引导在今日页内完成）。
+ * 启动状态机：开库 → 读档案 →（进入主界面后才）后台补种食物库。
+ * 档案读取与食物库导入解耦：导入失败绝不影响已存档案的呈现（PWA 反馈的「每次重录」根因）。
  */
 export function useAppBootstrap(): AppState {
-  const [state, setState] = useState<AppState>({ phase: 'loading', repos: null, profile: null })
+  const [state, setState] = useState<AppState>({ phase: 'loading', repos: null, profile: null, errorMsg: '' })
 
   useEffect(() => {
     let cancelled = false
@@ -39,13 +41,28 @@ export function useAppBootstrap(): AppState {
     }
     getOrCreateRepos()
       .then(async (repos) => {
-        await seedFoodLibrary(repos)
+        // 第一步：只读档案（关键路径，失败必须显式报错而非静默重录）
         const profile = await repos.profile.get()
-        if (!cancelled) setState({ phase: profile ? 'ready' : 'onboarding', repos, profile })
+        if (cancelled) return
+        setState({ phase: profile ? 'ready' : 'onboarding', repos, profile, errorMsg: '' })
+        // 第二步：食物库后台补种（幂等；失败只提示，不影响主界面）
+        try {
+          await seedFoodLibrary(repos)
+        } catch (err) {
+          console.warn('[qhelper] 内置食物库导入失败（不影响已有数据）：', err)
+        }
       })
-      .catch(() => {
-        // 存储不可用：仍进入 onboarding，页面内会展示对应错误态
-        if (!cancelled) setState({ phase: 'onboarding', repos: null, profile: null })
+      .catch((err) => {
+        // 开库/读档案失败：显式错误态（IndexedDB 被禁用、隐私模式等），绝不静默重录
+        console.error('[qhelper] 存储初始化失败：', err)
+        if (!cancelled) {
+          setState({
+            phase: 'error',
+            repos: null,
+            profile: null,
+            errorMsg: '本机存储不可用（可能处于无痕/隐私模式，或浏览器禁用了站点数据）。请退出隐私模式、允许站点存储后刷新重试；已有数据不会丢失。',
+          })
+        }
       })
     return () => {
       cancelled = true
@@ -68,6 +85,10 @@ export async function saveProfileRecord(profile: Profile): Promise<boolean> {
 
 /** onboarding 完成后刷新进入主界面 */
 export async function markOnboarded(profile: Profile): Promise<void> {
-  await saveProfileRecord(profile)
+  const ok = await saveProfileRecord(profile)
+  if (!ok) {
+    // 保存失败时不 reload——reload 会回到空 onboarding，造成「每次重录」的错觉
+    throw new Error('save-failed')
+  }
   window.location.reload()
 }
