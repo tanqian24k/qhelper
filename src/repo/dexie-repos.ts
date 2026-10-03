@@ -4,6 +4,7 @@
  */
 import Dexie, { type EntityTable } from 'dexie'
 import { randomUUID } from './uuid'
+import { todayStr } from '@/utils/date'
 import type {
   FoodEntry,
   FoodLibrary,
@@ -68,7 +69,7 @@ const goalRepo: GoalRepo = {
     return db.transaction('readwrite', db.goalVersion, async () => {
       const open = await goalRepo.getOpen()
       if (open) {
-        await db.goalVersion.update(open.id, { closedOn: new Date().toISOString().slice(0, 10) })
+        await db.goalVersion.update(open.id, { closedOn: todayStr() })
       }
       const created: GoalVersion = {
         id: goal.id ?? randomUUID(),
@@ -145,6 +146,9 @@ const foodLogRepo: FoodLogRepo = {
   async remove(id) {
     await db.foodEntry.delete(id)
   },
+  async count() {
+    return db.foodEntry.count()
+  },
 }
 
 const measurementRepo: MeasurementRepo = {
@@ -172,6 +176,9 @@ const measurementRepo: MeasurementRepo = {
     const list = await measurementRepo.listByDateAndType(date, type)
     if (list.length === 0) return undefined
     return list.reduce((s, m) => s + m.value, 0) / list.length
+  },
+  async count() {
+    return db.measurement.count()
   },
 }
 

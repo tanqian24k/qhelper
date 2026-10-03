@@ -77,6 +77,54 @@ describe('Dexie Repo 集成（fake-indexeddb）', () => {
     expect(updated?.per100g.kcal).toBe(200)
   })
 
+  // 已记条目可编辑（spec §2.4「补/改/删无限制」的「改」）：改克数/餐槽/热量，且快照不被改写
+  it('编辑已记条目：改克数与餐槽生效，快照保持不变', async () => {
+    const food = await repos.foodLibrary.add({
+      nameZh: '待编辑食物',
+      nameAlias: [],
+      category: '主食',
+      source: 'manual',
+      per100g: { kcal: 100, proteinG: 5, fatG: 5, carbG: 5, fiberG: 0, sugarG: 0, sodiumMg: 0 },
+      editable: true,
+    })
+    const [entry] = await repos.foodLog.addMany([
+      { date: '2026-03-01', slot: 'lunch', snapshot: { nameZh: food.nameZh, per100g: food.per100g }, grams: 100, kcal: 100 },
+    ])
+    await repos.foodLog.update({ ...entry, slot: 'dinner', grams: 200, kcal: 200, updatedAt: '2026-03-02T00:00:00.000Z' })
+    const after = (await repos.foodLog.listByDate('2026-03-01'))[0]
+    expect(after.slot).toBe('dinner')
+    expect(after.grams).toBe(200)
+    expect(after.kcal).toBe(200)
+    // 快照仍为录入时的值，未被编辑动作改写
+    expect(after.snapshot.per100g.kcal).toBe(100)
+    // 餐槽查询随之更新
+    expect((await repos.foodLog.listBySlot('2026-03-01', 'dinner')).length).toBe(1)
+    expect((await repos.foodLog.listBySlot('2026-03-01', 'lunch')).length).toBe(0)
+  })
+
+  // 自定义食物与内置库同列表检索（spec §2.5 验收）
+  it('自定义食物可与内置条目同列表检索，且可编辑可删除', async () => {
+    const custom = await repos.foodLibrary.add({
+      nameZh: '妈妈牌番茄炒蛋',
+      nameAlias: [],
+      category: '菜肴',
+      source: 'manual',
+      per100g: { kcal: 150, proteinG: 8, fatG: 9, carbG: 5, fiberG: 1, sugarG: 1, sodiumMg: 400 },
+      editable: true,
+    })
+    expect(custom.editable).toBe(true)
+    // 与内置条目同表检索
+    const hits = await repos.foodLibrary.search('番茄')
+    expect(hits.some((f) => f.nameZh === '妈妈牌番茄炒蛋')).toBe(true)
+    // 编辑后仍可检索到新名字
+    await repos.foodLibrary.update({ ...custom, nameZh: '妈妈牌番茄炒蛋（少油）' })
+    const hits2 = await repos.foodLibrary.search('少油')
+    expect(hits2.some((f) => f.nameZh === '妈妈牌番茄炒蛋（少油）')).toBe(true)
+    // 删除后不再出现
+    await repos.foodLibrary.remove(custom.id)
+    expect((await repos.foodLibrary.search('少油')).length).toBe(0)
+  })
+
   it('测量：同日同类型多条合法，日均值正确（spec §2.6 验收口径）', async () => {
     await repos.measurement.add({ date: '2026-03-01', type: 'weight', value: 70.0 })
     await repos.measurement.add({ date: '2026-03-01', type: 'weight', value: 69.3 })

@@ -4,6 +4,7 @@
  */
 import { CALORIE_FLOOR, MAX_WEEKLY_RATE_KG, calcBmr, calcBudget, calcTdee } from './budget'
 import type { ActivityKey, Sex } from './types'
+import { localDateString } from '@/utils/date'
 
 export type GoalCheckStatus = 'rejected' | 'warn' | 'ok'
 
@@ -85,5 +86,5 @@ export function estimateFinishDate(
   const days = Math.ceil((remainingKg / weeklyRateKg) * 7)
   const d = new Date(from)
   d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return localDateString(d)
 }

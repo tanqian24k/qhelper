@@ -4,6 +4,7 @@ import { MEAL_SLOTS, MEAL_SLOT_LABELS } from '@/domain/types'
 import { kcalOfFood, gramsFromKcal } from '@/domain/food'
 import type { Repos } from '@/domain/repos'
 import { useEscape } from '@/hooks/useEscape'
+import { FoodEditDialog } from './FoodEditDialog'
 
 export interface MealSessionDialogProps {
   repos: Repos
@@ -51,6 +52,7 @@ export function MealSessionDialog({ repos, date, onClose, onCommitted }: MealSes
   const [slot, setSlot] = useState<MealSlot>(defaultSlot)
   const [staged, setStaged] = useState<StagedItem[]>([])
   const [committing, setCommitting] = useState(false)
+  const [editingFood, setEditingFood] = useState<FoodLibrary | 'new' | null>(null)
   const searchSeq = useRef(0)
 
   useEscape(onClose, staged.length === 0 && !committing)
@@ -64,6 +66,19 @@ export function MealSessionDialog({ repos, date, onClose, onCommitted }: MealSes
     }, 120)
     return () => clearTimeout(t)
   }, [query, repos])
+
+  // 自定义食物保存后刷新搜索结果，让新条目立刻可被检索（spec §2.5 验收）
+  useEffect(() => {
+    if (editingFood === null) return
+    let cancelled = false
+    void (async () => {
+      const r = await repos.foodLibrary.search(query, 30)
+      if (!cancelled) setResults(r)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [editingFood, query, repos])
 
   const gramsNum = Number(grams)
   const kcalNum = Number(kcalInput)
@@ -140,10 +155,18 @@ export function MealSessionDialog({ repos, date, onClose, onCommitted }: MealSes
                     </span>
                     <span className="food-kcal">{f.per100g.kcal} kcal/100g</span>
                   </button>
+                  {f.editable && (
+                    <button className="btn-link" aria-label={`编辑${f.nameZh}`} onClick={() => setEditingFood(f)}>
+                      编辑
+                    </button>
+                  )}
                 </li>
               ))}
               {results.length === 0 && <li className="card-hint">没有匹配的食物</li>}
             </ul>
+            <button className="btn-ghost btn-block" onClick={() => setEditingFood('new')}>
+              ＋ 新增自定义食物
+            </button>
           </>
         )}
 
@@ -152,6 +175,11 @@ export function MealSessionDialog({ repos, date, onClose, onCommitted }: MealSes
             <p className="pick-name">
               {selected.nameZh} <span className="food-kcal">{selected.per100g.kcal} kcal/100g</span>
             </p>
+            {selected.source === 'manual' && (
+              <p className="card-hint">
+                ⚠ 估算值：{selected.estimateNote ?? '内置库按常见做法估算'}，与实际做法可能有偏差
+              </p>
+            )}
             <div className="seg-row">
               {MEAL_SLOTS.map((s) => (
                 <button key={s} className={slot === s ? 'seg seg-on' : 'seg'} onClick={() => setSlot(s)}>
@@ -238,6 +266,15 @@ export function MealSessionDialog({ repos, date, onClose, onCommitted }: MealSes
             {committing ? '入账中…' : `完成本餐（入账 ${staged.length} 项）`}
           </button>
         </div>
+
+        {editingFood && (
+          <FoodEditDialog
+            repos={repos}
+            initial={editingFood === 'new' ? null : editingFood}
+            onClose={() => setEditingFood(null)}
+            onSaved={() => setEditingFood(null)}
+          />
+        )}
       </div>
     </div>
   )

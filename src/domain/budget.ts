@@ -40,14 +40,17 @@ export function calcTdee(bmr: number, activityKey: ActivityKey): number {
   return Math.round(bmr * ACTIVITY_FACTORS[activityKey])
 }
 
-/** 日缺口 = 每周速率(kg) × 1100 */
-export function calcWeeklyDeficit(weeklyRateKg: number): number {
+/**
+ * 每日热量缺口 = 每周速率(kg) × 1100
+ * （函数名保持 calcDailyDeficit：它返回**日**缺口，不是周缺口——早期叫 calcWeeklyDeficit 是误导）
+ */
+export function calcDailyDeficit(weeklyRateKg: number): number {
   return Math.round(weeklyRateKg * DEFICIT_PER_WEEK_PER_KG)
 }
 
-/** 每日热量预算 = TDEE − 缺口 */
+/** 每日热量预算 = TDEE − 日缺口 */
 export function calcBudget(tdee: number, weeklyRateKg: number): number {
-  return tdee - calcWeeklyDeficit(weeklyRateKg)
+  return tdee - calcDailyDeficit(weeklyRateKg)
 }
 
 /** 由出生年份推算年龄（按当前年份粗算，够 MVP 用） */

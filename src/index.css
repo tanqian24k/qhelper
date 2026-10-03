@@ -370,6 +370,17 @@ fieldset.card legend { padding: 0 4px; }
   padding: 10px 12px;
 }
 
+/* 目标达成提示（维持模式）——绿色系，与 form-error 的红色警示区分 */
+.form-note-ok {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
 /* —— 底部导航栏（原生 App 风格，fixed 全宽） —— */
 .tab-bar {
   position: fixed;

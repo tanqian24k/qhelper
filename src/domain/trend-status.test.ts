@@ -57,10 +57,24 @@ describe('assessTrend 三色状态（spec §2.3 口径）', () => {
     expect(r.status).toBe('normal')
   })
 
-  it('🟠 偏快：周降 1.2 超预期 0.5+0.5', () => {
+  it('🟠 偏快：周降 1.2 超预期 0.5+0.25', () => {
     const r = assessTrend(seriesOf([71, 70.3, 69.6, 68.4, 67.2]), 0.5)
     expect(r.status).toBe('fast')
     expect(r.message).toContain('偏快')
+  })
+
+  // 以下两条锁定「🟢/🟠 首尾相接、区间无空洞」：
+  // 旧口径 🟠 需超 0.5，导致 (0.25, 0.5] 无任何状态归属；现两档共用 0.25 宽。
+  it('🟢 边界：恰好等于预期−0.25（不判偏快）', () => {
+    // 预期 0.5，阈值 -(0.5+0.25)=-0.75；周降恰好 -0.75 应归 🟢
+    const r = assessTrend(seriesOf([71, 70.25, 69.5, 68.75, 68.0]), 0.5)
+    expect(r.status).toBe('normal')
+  })
+
+  it('🟠 边界：略超预期−0.25（判偏快）', () => {
+    // 周降 -0.8 < -0.75 → 判偏快（这正是旧口径下无人归属的区间）
+    const r = assessTrend(seriesOf([71, 70.2, 69.4, 68.6, 67.8]), 0.5)
+    expect(r.status).toBe('fast')
   })
 
   it('🔴 停滞：连续两周变化不足 25%（<0.125kg）', () => {

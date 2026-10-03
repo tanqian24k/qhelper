@@ -71,7 +71,7 @@ export function SettingsPage(_props: SettingsPageProps) {
         d.profileUpdatedAt = profile?.updatedAt ?? null
         d.counts = {
           foodLibrary: await repos.foodLibrary.count(),
-          foodEntries: await dbCount(),
+          foodEntries: await countEntries(),
           measurements: await countMeasurements(),
           goalVersions: (await repos.goal.listAll()).length,
         }
@@ -205,16 +205,19 @@ export function SettingsPage(_props: SettingsPageProps) {
   )
 }
 
-/** 饮食记录总数（直接查 Dexie 表） */
-async function dbCount(): Promise<number> {
-  const { db } = await import('@/repo/dexie-repos')
-  return db.foodEntry.count()
+/**
+ * 记录总数（诊断用）—— 经 Repo 接口取，不直接 import 具体实现，
+ * 这样原生壳走 SQLite 时同样可用（spec §3 架构铁律）。
+ */
+async function countEntries(): Promise<number> {
+  const repos = await getOrCreateRepos()
+  return repos.foodLog.count()
 }
 
 /** 测量记录总数 */
 async function countMeasurements(): Promise<number> {
-  const { db } = await import('@/repo/dexie-repos')
-  return db.measurement.count()
+  const repos = await getOrCreateRepos()
+  return repos.measurement.count()
 }
 
 /** 导入确认弹层（设置页内使用） */

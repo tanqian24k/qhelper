@@ -70,8 +70,10 @@ export interface FoodLibrary {
   category: string
   source: FoodSource
   per100g: Per100g
-  /** 默认份型（如「1 碗 ≈ 250g」） */
+  /** 默认份型（如「1 份 ≈ 150g」） */
   defaultPortion?: { label: string; grams: number }
+  /** 估算说明（source=manual 的菜肴/外卖条目：说明营养值来源与不确定性） */
+  estimateNote?: string | null
   /** 内置库条目不可编辑 */
   editable: boolean
   createdAt: string

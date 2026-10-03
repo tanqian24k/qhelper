@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FoodEntry, GoalVersion, Profile } from '@/domain/types'
+import type { FoodEntry, FoodLibrary, GoalVersion, Profile } from '@/domain/types'
 import { MEAL_SLOTS, MEAL_SLOT_LABELS } from '@/domain/types'
 import type { Repos } from '@/domain/repos'
 import { ageFromBirthYear, calcBmr, calcBudget, calcTdee } from '@/domain/budget'
+import { assessGoalState } from '@/domain/goal-state'
+import { estimateFinishDate } from '@/domain/goal-check'
 import { todayStr, shiftDate } from '@/utils/date'
 import { GoalDialog } from './GoalDialog'
 import { MealSessionDialog } from './MealSessionDialog'
+import { EntryEditDialog } from './EntryEditDialog'
+import { FoodEditDialog } from './FoodEditDialog'
 import { ProfileDialog } from './ProfileDialog'
 import { GoalHistoryDialog } from './GoalHistoryDialog'
 import { MeasurementDialog } from './MeasurementDialog'
@@ -31,6 +35,8 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
   const [todayWeightCount, setTodayWeightCount] = useState(0)
   const [showCheckin, setShowCheckin] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null)
+  const [editingFood, setEditingFood] = useState<FoodLibrary | 'new' | null>(null)
   const [tab, setTab] = useState<'today' | 'trend' | 'settings' | 'about'>('today')
   const reloadSeq = useRef(0)
   const isToday = date === todayStr()
@@ -70,6 +76,18 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
     const budget = goal ? calcBudget(tdee, goal.weeklyRateKg) : tdee
     return { bmr, tdee, budget, weight: latestWeight ?? 70, hasWeight: latestWeight !== null }
   }, [profile, latestWeight, goal])
+
+  // 维持模式状态（达成 / 过期）—— 只提示不改账（spec §2.2）
+  const goalState = useMemo(() => {
+    if (!goal) return null
+    const finishDate = estimateFinishDate(latestWeight ?? 0, goal.targetWeightKg, goal.weeklyRateKg)
+    return assessGoalState({
+      targetWeightKg: goal.targetWeightKg,
+      currentWeightKg: latestWeight,
+      finishDate,
+      today: todayStr(),
+    })
+  }, [goal, latestWeight])
 
   const consumed = entries.reduce((s, e) => s + e.kcal, 0)
   const remain = calc.budget - consumed
@@ -125,6 +143,12 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
               目标：{calc.weight} → {goal.targetWeightKg} kg · −{goal.weeklyRateKg} kg/周
             </p>
             <p className="card-hint">缺口 {calc.tdee - calc.budget} kcal/日（预算随目标固定，不随运动调整）</p>
+            {goalState && goalState.state !== 'active' && (
+              <p className={goalState.state === 'achieved' ? 'form-note-ok' : 'form-error'}>
+                {goalState.state === 'achieved' ? '🎉 ' : '⏰ '}
+                {goalState.message}
+              </p>
+            )}
             <button className="btn-link" onClick={() => setShowGoal(true)}>修改目标</button>
             <button className="btn-link" onClick={() => setShowHistory(true)}>历史版本</button>
           </>
@@ -189,6 +213,13 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
                       {e.kcal} kcal
                       <button
                         className="btn-link"
+                        aria-label={`编辑${e.snapshot.nameZh}`}
+                        onClick={() => setEditingEntry(e)}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="btn-link"
                         aria-label={`删除${e.snapshot.nameZh}`}
                         onClick={async () => {
                           await repos.foodLog.remove(e.id)
@@ -237,6 +268,28 @@ export function TodayPage({ repos, profile }: TodayPageProps) {
           onClose={() => setShowCheckin(false)}
           onSaved={() => {
             setShowCheckin(false)
+            void reload()
+          }}
+        />
+      )}
+        {editingEntry && (
+        <EntryEditDialog
+          repos={repos}
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={() => {
+            setEditingEntry(null)
+            void reload()
+          }}
+        />
+      )}
+      {editingFood && (
+        <FoodEditDialog
+          repos={repos}
+          initial={editingFood === 'new' ? null : editingFood}
+          onClose={() => setEditingFood(null)}
+          onSaved={() => {
+            setEditingFood(null)
             void reload()
           }}
         />

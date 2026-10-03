@@ -1,6 +1,6 @@
 /**
  * 存储抽象层（Repo 接口）—— spec §3 架构铁律。
- * UI 只依赖这五个接口；Dexie 与 SQLite 差异被隔离在实现层。
+ * UI 只依赖这六个接口；Dexie（Web）与 SQLite（原生）差异被隔离在实现层。
  */
 import type {
   FoodEntry,
@@ -56,6 +56,8 @@ export interface FoodLogRepo {
   addMany(entries: Array<Omit<FoodEntry, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<FoodEntry, 'id' | 'createdAt'>>>): Promise<FoodEntry[]>
   update(entry: FoodEntry): Promise<void>
   remove(id: string): Promise<void>
+  /** 全部条目数（设置页存储诊断用） */
+  count(): Promise<number>
 }
 
 export interface MeasurementRepo {
@@ -68,6 +70,8 @@ export interface MeasurementRepo {
   remove(id: string): Promise<void>
   /** 某类型某日均值；无记录返回 undefined */
   dailyMean(type: MeasurementType, date: string): Promise<number | undefined>
+  /** 全部测量记录数（设置页存储诊断用） */
+  count(): Promise<number>
 }
 
 export interface SettingRepo {
@@ -75,7 +79,7 @@ export interface SettingRepo {
   set(key: string, value: unknown): Promise<void>
 }
 
-/** 五接口聚合 —— 实现层（Dexie / capacitor-sqlite）各自工厂产出 */
+/** 六接口聚合 —— 实现层（Dexie / capacitor-sqlite）各自工厂产出 */
 export interface Repos {
   profile: ProfileRepo
   goal: GoalRepo

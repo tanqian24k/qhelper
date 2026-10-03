@@ -1,7 +1,12 @@
-# Map: 跨平台智能减脂助手 — 规划图
+# Map: 跨平台智能减脂助手 — 规划图（已封存）
 
 Labels: wayfinder:map
 Status: complete
+Archived: 2026-06
+
+> **本图已封存为决策档案。** 它的「目的地」是产出规格书 v1，2026-02 已达成；
+> 其中的 Notes 与 Decisions so far 是「为什么这样决策」的上下文，不会过期，作为背景保留。
+> **实现进度不再挂在本图下**——MVP/M4 的实现票见 [implementation-map.md](implementation-map.md)。
 
 ## Destination
 
@@ -48,6 +53,9 @@ Status: complete
 - 下一步不在本 map 内：按 spec.md §9 里程碑启动实现（M0 工程骨架起步），实现工作建议走常规 issue 流程或新 effort，不再挂在本规划图下。
 - 雾区（v1.5 报表设计、v2.0 教练 prompt 设计）已在规格书中标注「实现前补一次 grilling」。
 - 域术语表沉淀于仓库根 [CONTEXT.md](../../../CONTEXT.md)（21 个术语）。
+
+> **2026-06 补记**：后续实现已推进到 M4（Android 壳），实现票 08–17 存于 [issues/](issues/)。
+> 本图的 Tickets 清单只索引到 07——实现票从未进图，这是本图封存、另立实现地图的直接原因。
 
 ## Not yet specified
 
